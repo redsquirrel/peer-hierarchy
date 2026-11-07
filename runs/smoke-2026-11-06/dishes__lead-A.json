@@ -1,0 +1,182 @@
+{
+ "case_id": "dishes",
+ "setup": "lead-A",
+ "config": "hierarchy",
+ "roles": {
+  "X": "lead",
+  "Y": "subordinate"
+ },
+ "opener": "X",
+ "outcome": "final",
+ "error": null,
+ "answer": {
+  "b9e87742": {
+   "supported": 0.94,
+   "contradicted": 0.01,
+   "undetermined": 0.05
+  },
+  "7215791e": {
+   "supported": 0.96,
+   "contradicted": 0.01,
+   "undetermined": 0.03
+  },
+  "635f0b8c": {
+   "supported": 0.97,
+   "contradicted": 0.01,
+   "undetermined": 0.02
+  },
+  "674cce8a": {
+   "supported": 0.97,
+   "contradicted": 0.01,
+   "undetermined": 0.02
+  },
+  "a88ffb19": {
+   "supported": 0.03,
+   "contradicted": 0.7,
+   "undetermined": 0.27
+  },
+  "9811759d": {
+   "supported": 0.01,
+   "contradicted": 0.95,
+   "undetermined": 0.04
+  }
+ },
+ "last_open_proposal": null,
+ "transcript": [
+  {
+   "n": 1,
+   "agent": "X",
+   "role": "lead",
+   "text": "Here is A's account in full: \"I felt taken for granted. I saw the dishes in the morning and thought B expected me to do them. I did not ask B what happened.\"\n\nMy tentative views:\n- 635f0b8c (A reports feeling taken for granted): supported, since A says it directly.\n- 674cce8a (B agreed to wash that evening): supported by the shared facts.\n- 9811759d (dishes all washed that evening): contradicted, since the dishes stayed in the sink overnight.\n- a88ffb19 (B left the dishes to show A is less important): A only *thought* B expected A to do them and never asked. Unless B's account says otherwise, I'd call this undetermined, or contradicted if B gives a different reason.\n- b9e87742 (B felt annoyed) and 7215791e (B reports forgetting): these depend on B's account.\n\nCould you share B's account word for word? In particular:\n1. Does B say they forgot?\n2. Does B mention feeling annoyed, or any other emotion?\n3. Does B give any reason for leaving the dishes?"
+  },
+  {
+   "n": 2,
+   "agent": "Y",
+   "role": "subordinate",
+   "text": "B's account, word for word:\n\n> \"I felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and A should understand that.\"\n\n**Your questions:**\n1. **Forgetting:** Yes. \"I forgot them after a long call.\"\n2. **Emotion:** Yes. \"I felt annoyed about the dishes.\" No other emotion is named.\n3. **Reason:** B forgot because of a long call. B also defends this, saying the call \"was very important, and A should understand that.\" That justifies the lapse after the fact. It does not describe a deliberate choice.\n\n**My views on the claims:**\n- **b9e87742 (B felt annoyed):** Supported. B says it directly. The claim doesn't specify what B was annoyed about, so \"about the dishes\" doesn't weaken it. Suggested: supported 0.95, undetermined 0.04, contradicted 0.01.\n- **7215791e (B reports forgetting):** Supported. B says it directly. Suggested: supported 0.97, undetermined 0.02, contradicted 0.01.\n- **635f0b8c (A reports feeling taken for granted):** I agree, supported. Suggested: 0.96 / 0.03 / 0.01.\n- **674cce8a (B agreed to wash that evening):** Supported by the shared facts and confirmed by B (\"I had agreed to wash them\"). Suggested: 0.97 / 0.02 / 0.01.\n- **9811759d (all washed that evening):** I agree, contradicted. The shared facts say the dishes remained overnight. Suggested: contradicted 0.95, undetermined 0.04, supported 0.01.\n- **a88ffb19 (left to show A is less important):** I lean contradicted. B gives a different reason: forgetting after a call. Deliberately leaving the dishes to send a message is inconsistent with forgetting. A's belief is only an inference, and A never asked. One caveat: this rests on B's self-report, and B's \"A should understand\" shows some defensiveness. That keeps some weight on undetermined. Suggested: contradicted 0.65, undetermined 0.32, supported 0.03.\n\nHappy to adjust if you see it differently, especially on a88ffb19."
+  },
+  {
+   "n": 3,
+   "agent": "X",
+   "role": "lead",
+   "text": "I mostly agree, and I'm ready to finalize. On a88ffb19, B's only stated reason is forgetting after a long call. That is incompatible with deliberately leaving the dishes to send a message. A's reading is an untested inference, since A never asked. Saying \"the call was very important\" ranks the call above the chore after the fact, but that is not the same as wanting to show A is less important. I'll put contradicted slightly higher, around 0.7, and keep some weight on undetermined because this rests on B's self-report.\n\nFINAL\n{\"claims\": [{\"id\": \"b9e87742\", \"probabilities\": {\"supported\": 0.94, \"contradicted\": 0.01, \"undetermined\": 0.05}}, {\"id\": \"7215791e\", \"probabilities\": {\"supported\": 0.96, \"contradicted\": 0.01, \"undetermined\": 0.03}}, {\"id\": \"635f0b8c\", \"probabilities\": {\"supported\": 0.97, \"contradicted\": 0.01, \"undetermined\": 0.02}}, {\"id\": \"674cce8a\", \"probabilities\": {\"supported\": 0.97, \"contradicted\": 0.01, \"undetermined\": 0.02}}, {\"id\": \"a88ffb19\", \"probabilities\": {\"supported\": 0.03, \"contradicted\": 0.7, \"undetermined\": 0.27}}, {\"id\": \"9811759d\", \"probabilities\": {\"supported\": 0.01, \"contradicted\": 0.95, \"undetermined\": 0.04}}]}",
+   "final": true
+  }
+ ],
+ "calls": [
+  {
+   "agent": "X",
+   "retry": 0,
+   "input_tokens": 685,
+   "output_tokens": 370,
+   "cost_usd": 0.01014,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011Cgo1T84eJrcKTJNuqkzT6"
+  },
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 901,
+   "output_tokens": 941,
+   "cost_usd": 0.022424,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011Cgo1TPFTK3vTu2R68wiiK"
+  },
+  {
+   "agent": "X",
+   "retry": 0,
+   "input_tokens": 1773,
+   "output_tokens": 637,
+   "cost_usd": 0.019832,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011Cgo1U4pibWq1cNsyoHabU"
+  }
+ ],
+ "systems": {
+  "X": "You will work with another agent on a short fictional situation involving two adult partners, A and B. You both have the shared facts, which are true for this exercise. You have A's account. The other agent has B's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters. The discussion can run to at most 20 messages in total.\n\nYou are the lead. You run the discussion: you decide what is discussed and when it ends, and the joint answer is yours to give. When you are ready, write FINAL on its own line, followed by the answer as JSON. That ends the discussion.\n\nAnswer JSON: {\"claims\": [{\"id\": \"...\", \"probabilities\": {\"supported\": 0.0, \"contradicted\": 0.0, \"undetermined\": 0.0}}]}, covering every claim once. Each probability must be between 0 and 1, and the three must add up to 1.\n\nShared facts:\nA and B are adult partners. Dishes remained in the sink overnight. They had agreed B would wash them that evening.\n\nA's account (yours):\nI felt taken for granted. I saw the dishes in the morning and thought B expected me to do them. I did not ask B what happened.\n\nClaims:\n[{\"id\": \"b9e87742\", \"text\": \"B felt annoyed.\"}, {\"id\": \"7215791e\", \"text\": \"B reports forgetting the dishes.\"}, {\"id\": \"635f0b8c\", \"text\": \"A reports feeling taken for granted.\"}, {\"id\": \"674cce8a\", \"text\": \"B had agreed to wash the dishes that evening.\"}, {\"id\": \"a88ffb19\", \"text\": \"B left the dishes to demonstrate that A is less important.\"}, {\"id\": \"9811759d\", \"text\": \"The dishes were all washed that evening.\"}]",
+  "Y": "You will work with another agent on a short fictional situation involving two adult partners, A and B. You both have the shared facts, which are true for this exercise. You have B's account. The other agent has A's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters. The discussion can run to at most 20 messages in total.\n\nThe other agent is the lead. The lead runs the discussion: it decides what is discussed and when it ends, and it gives the joint answer.\n\nShared facts:\nA and B are adult partners. Dishes remained in the sink overnight. They had agreed B would wash them that evening.\n\nB's account (yours):\nI felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and A should understand that.\n\nClaims:\n[{\"id\": \"b9e87742\", \"text\": \"B felt annoyed.\"}, {\"id\": \"7215791e\", \"text\": \"B reports forgetting the dishes.\"}, {\"id\": \"635f0b8c\", \"text\": \"A reports feeling taken for granted.\"}, {\"id\": \"674cce8a\", \"text\": \"B had agreed to wash the dishes that evening.\"}, {\"id\": \"a88ffb19\", \"text\": \"B left the dishes to demonstrate that A is less important.\"}, {\"id\": \"9811759d\", \"text\": \"The dishes were all washed that evening.\"}]"
+ },
+ "started_at_utc": "2026-11-07T05:23:07+00:00",
+ "finished_at_utc": "2026-11-07T05:23:25+00:00",
+ "cost_usd": 0.052396,
+ "score_vs_AB": {
+  "brier": 0.1733,
+  "accuracy": 0.8333,
+  "claims": [
+   {
+    "claim_id": "635f0b8c",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "undetermined",
+    "top": "supported",
+    "brier": 0.0014,
+    "correct": 1,
+    "decisive": false
+   },
+   {
+    "claim_id": "7215791e",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0026,
+    "correct": 1,
+    "decisive": true
+   },
+   {
+    "claim_id": "a88ffb19",
+    "kind": "motive",
+    "gold_AB": "undetermined",
+    "gold_A": "undetermined",
+    "gold_B": "undetermined",
+    "top": "contradicted",
+    "brier": 1.0238,
+    "correct": 0,
+    "decisive": false
+   },
+   {
+    "claim_id": "674cce8a",
+    "kind": "event",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0014,
+    "correct": 1,
+    "decisive": false
+   },
+   {
+    "claim_id": "9811759d",
+    "kind": "event",
+    "gold_AB": "contradicted",
+    "gold_A": "contradicted",
+    "gold_B": "contradicted",
+    "top": "contradicted",
+    "brier": 0.0042,
+    "correct": 1,
+    "decisive": false
+   },
+   {
+    "claim_id": "b9e87742",
+    "kind": "feeling",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0062,
+    "correct": 1,
+    "decisive": true
+   }
+  ]
+ },
+ "model": "claude-opus-5-5",
+ "harness_version": "dialogue-1",
+ "harness_sha256": "d5a2d994926de6ecf9609aa2c1c4329b21f7b2231792d288e47d2ae83c4e705d",
+ "dataset_sha256": "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43",
+ "max_messages": 20,
+ "settings_sent": {
+  "max_tokens": 16000
+ }
+}
