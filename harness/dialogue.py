@@ -4,9 +4,9 @@
     python3 -I harness/dialogue.py dry-run                      # full loop with a scripted fake model
     python3 -I harness/dialogue.py smoke CASE CAP_USD LABEL MX/MY [MX/MY ...]
                                                                 # paid: the 4 setups per pairing
-                                                                # (MX plays X with A's account)
+                                                                # (MX plays X, who holds Alex's account)
 
-Setups (X holds A's account, Y holds B's):
+Setups (X holds Alex's account = A in the dataset; Y holds Blake's = B):
     peer-A-opens, peer-B-opens       equals; both must agree (PROPOSE ... / AGREE)
     lead-A, lead-B                   the named account's holder leads, opens and gives FINAL
 
@@ -31,7 +31,7 @@ SOURCE_REPO = ROOT.parent / "epistemic-empathy"
 DATASET = SOURCE_REPO / "data" / "pilot.jsonl"
 DATASET_SHA256 = "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43"
 KEYS_FILE = Path.home() / ".config/epistemic-empathy/api-keys.env"
-HARNESS_VERSION = "dialogue-2"
+HARNESS_VERSION = "dialogue-3"
 
 LABELS = ("supported", "contradicted", "undetermined")
 SETUPS = ("peer-A-opens", "peer-B-opens", "lead-A", "lead-B")
@@ -47,7 +47,11 @@ PRICES = {
 }
 SETTINGS_SENT = {"anthropic": {"max_tokens": MAX_TOKENS}, "openai": {"store": False}}
 
-COMMON = """You will work with another agent on a short fictional situation involving two adult partners, A and B. You both have the shared facts, which are true for this exercise. You have {own}'s account. The other agent has {other}'s account. You have not seen its account, and it has not seen yours.
+NAMES = {"A": "Alex", "B": "Blake"}
+# "A" used as an article in the shared facts, not as a person.
+ARTICLE_A = ("A train", "A fan")
+
+COMMON = """You will work with another agent on a short fictional situation involving two adult partners, Alex and Blake. You both have the shared facts, which are true for this exercise. You have {own}'s account. The other agent has {other}'s account. You have not seen its account, and it has not seen yours.
 
 Together you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:
 - supported: the material supports the claim
@@ -64,7 +68,7 @@ LEAD = """You are the lead. You run the discussion: you decide what is discussed
 
 SUBORDINATE = """The other agent is the lead. The lead runs the discussion: it decides what is discussed and when it ends, and it gives the joint answer."""
 
-FORMAT = """Answer JSON: {"claims": [{"id": "...", "probabilities": {"supported": 0.0, "contradicted": 0.0, "undetermined": 0.0}}]}, covering every claim once. Each probability must be between 0 and 1, and the three must add up to 1."""
+FORMAT = """Answer JSON: {"claims": [{"claim": 1, "probabilities": {"supported": 0.0, "contradicted": 0.0, "undetermined": 0.0}}]}, with one entry for each numbered claim. Each probability must be between 0 and 1, and the three must add up to 1."""
 
 OPEN = "Please begin the discussion."
 
@@ -79,6 +83,16 @@ def load_cases():
         if case["provenance"] != "newly_authored_fiction":
             sys.exit("Only newly authored fiction is permitted")
     return {case["id"]: case for case in cases}
+
+
+def humanize(text):
+    """Replace the person letters A and B with names; keep "A" where it is an article."""
+    for i, phrase in enumerate(ARTICLE_A):
+        text = text.replace(phrase, f"\x00{i}\x00")
+    text = re.sub(r"\b([AB])\b", lambda m: NAMES[m.group(1)], text)
+    for i, phrase in enumerate(ARTICLE_A):
+        text = text.replace(f"\x00{i}\x00", phrase)
+    return text
 
 
 def ordered_claims(case):
@@ -97,13 +111,13 @@ def roles(setup):
 
 def system_prompt(case, agent, role):
     own, other = ("A", "B") if agent == "X" else ("B", "A")
-    claims = [{"id": c["id"], "text": c["text"]} for c in ordered_claims(case)]
-    parts = [COMMON.format(own=own, other=other, max_messages=MAX_MESSAGES),
+    claims = "\n".join(f"{n}. {humanize(c['text'])}" for n, c in enumerate(ordered_claims(case), 1))
+    parts = [COMMON.format(own=NAMES[own], other=NAMES[other], max_messages=MAX_MESSAGES),
              {"peer": PEER, "lead": LEAD, "subordinate": SUBORDINATE}[role],
              FORMAT,
-             "Shared facts:\n" + case["shared"],
-             f"{own}'s account (yours):\n" + case[own],
-             "Claims:\n" + json.dumps(claims, ensure_ascii=False)]
+             "Shared facts:\n" + humanize(case["shared"]),
+             f"{NAMES[own]}'s account (yours):\n" + humanize(case[own]),
+             "Claims:\n" + claims]
     if role == "subordinate":
         parts.remove(FORMAT)  # only the lead gives the answer; it alone needs the format
     return "\n\n".join(parts)
@@ -123,7 +137,8 @@ def probabilities(value):
 
 
 def find_answer(text, marker, claim_ids):
-    """Return (found, answer_or_error). found=False means the marker line is absent."""
+    """Return (found, answer_or_error). found=False means the marker line is absent.
+    claim_ids are in the order shown to the agents; the answer names claims by number (1-based)."""
     lines = text.split("\n")
     bare = [line.strip().strip("*_#`: ") for line in lines]   # tolerate **FINAL**, FINAL:, ## FINAL
     if marker not in bare:
@@ -137,10 +152,10 @@ def find_answer(text, marker, claim_ids):
     try:
         value, _ = json.JSONDecoder().raw_decode(body.strip())
         claims = value["claims"]
-        ids = [c["id"] for c in claims]
-        if sorted(ids) != sorted(claim_ids):
-            raise ValueError("claims must cover each claim ID exactly once")
-        return True, {c["id"]: probabilities(c["probabilities"]) for c in claims}
+        numbers = [c["claim"] for c in claims]
+        if any(type(n) is not int for n in numbers) or sorted(numbers) != list(range(1, len(claim_ids) + 1)):
+            raise ValueError(f"claims must cover each claim number 1-{len(claim_ids)} exactly once")
+        return True, {claim_ids[c["claim"] - 1]: probabilities(c["probabilities"]) for c in claims}
     except (ValueError, TypeError, KeyError, AttributeError) as exc:
         return True, f"error: {exc}"[:200]
 
@@ -212,15 +227,15 @@ def openai_caller(model, secret):
         data = post_json("https://api.openai.com/v1/responses", {"authorization": "Bearer " + secret},
                          {"model": model, "store": False,
                           "input": [{"role": "system", "content": system}] + messages})
+        # Some responses hold more than one message item, and joining them doubled the text.
+        # Keep only the last message item, and record how many there were.
+        messages_out = [item for item in data.get("output", []) if item.get("type") == "message"]
         text, refused = "", False
-        for item in data.get("output", []):
-            if item.get("type") != "message":
-                continue
-            for part in item.get("content", []):
-                if part.get("type") == "output_text":
-                    text += part.get("text", "")
-                elif part.get("type") == "refusal":
-                    refused = True
+        for part in (messages_out[-1].get("content", []) if messages_out else []):
+            if part.get("type") == "output_text":
+                text += part.get("text", "")
+            elif part.get("type") == "refusal":
+                refused = True
         usage = data.get("usage") or {}
         total, out = usage.get("input_tokens") or 0, usage.get("output_tokens") or 0  # out includes reasoning
         cached = (usage.get("input_tokens_details") or {}).get("cached_tokens") or 0
@@ -231,6 +246,8 @@ def openai_caller(model, secret):
                              f"status {data.get('status')}: {data.get('incomplete_details')}", cost)
         reasoning = (usage.get("output_tokens_details") or {}).get("reasoning_tokens") or 0
         return text, {"input_tokens": total, "output_tokens": out, "reasoning_tokens": reasoning, "cost_usd": cost,
+                      "message_items": len(messages_out),
+                      "message_item_phases": [item.get("phase") for item in messages_out],
                       "model_returned": data.get("model"), "id": data.get("id")}
     return call
 
@@ -253,7 +270,7 @@ def run_dialogue(case, setup, call, budget_left=math.inf):
     Returns a full record; never fills in missing answers."""
     callers = call if isinstance(call, dict) else {"X": call, "Y": call}
     config, role, opener = roles(setup)
-    claim_ids = [c["id"] for c in case["claims"]]
+    claim_ids = [c["id"] for c in ordered_claims(case)]   # position = claim number shown - 1
     systems = {a: system_prompt(case, a, role[a]) for a in "XY"}
     views = {"X": [], "Y": []}           # each agent's own message history (API format)
     views[opener].append({"role": "user", "content": OPEN})
@@ -352,9 +369,9 @@ def summary(record):
 
 def fake_caller(case):
     """Scripted stand-in: talks twice, then proposes/finalizes the uniform answer, then agrees."""
-    uniform = json.dumps({"claims": [{"id": c["id"], "probabilities": {k: 0.25 if k != "undetermined" else 0.5
-                                                                       for k in LABELS}}
-                                     for c in case["claims"]]})
+    uniform = json.dumps({"claims": [{"claim": n, "probabilities": {k: 0.25 if k != "undetermined" else 0.5
+                                                                     for k in LABELS}}
+                                     for n in range(1, len(case["claims"]) + 1)]})
 
     def call(system, messages):
         mine = sum(1 for m in messages if m["role"] == "assistant")
@@ -395,8 +412,9 @@ def dry_run():
         s = score(case, record)
         assert record["outcome"] in ("final", "agreed"), record["outcome"]
         print(json.dumps({**summary(record), "brier": s["brier"], "accuracy": s["accuracy"]}))
-    good = json.dumps({"claims": [{"id": c["id"], "probabilities": {"supported": 1, "contradicted": 0,
-                                                                     "undetermined": 0}} for c in case["claims"]]})
+    good = json.dumps({"claims": [{"claim": n, "probabilities": {"supported": 1, "contradicted": 0,
+                                                                   "undetermined": 0}}
+                                  for n in range(1, len(case["claims"]) + 1)]})
     checks = [  # (setup, replies, expected outcome, expected delivered messages)
         ("peer-A-opens", ["hi", "PROPOSE\n" + good, "**AGREE** glad we converged"], "agreed", 3),
         ("peer-A-opens", ["PROPOSE\n" + good, "not yet", "AGREE"], "message_cap", 20),
@@ -420,7 +438,7 @@ def dry_run():
         inner = fake_caller(case)
 
         def call(system, messages):
-            seen.append((tag, "You have A's account" in system))
+            seen.append((tag, "You have Alex's account" in system))
             return inner(system, messages)
         return call
     for setup in SETUPS:
