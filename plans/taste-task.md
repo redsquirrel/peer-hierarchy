@@ -75,7 +75,11 @@ both sides, to be checked with a smoke test first.
 1. ~~Real data.~~ **Decided (Dave, 2026-11-07): yes.** Real anonymous MovieLens ratings are
    acceptable for this task. The fiction-only rule still applies to anything about couples
    or clinical material.
-2. **Licence.** The ml-1m README allows any research use under four conditions: no implied
+2. ~~Licence and run records.~~ **Decided (Dave, 2026-11-07): option A.** Conversation
+   records for this task stay in a private folder outside the public repo
+   (~/Projects/anthropic-fellow/peer-hierarchy-private/). The public repo gets the code, the
+   plan and summary results. If public transcripts are wanted later, ask GroupLens then.
+   The ml-1m README allows any research use under four conditions: no implied
    endorsement by the University of Minnesota or GroupLens, cite Harper & Konstan (2015) in
    publications, no redistribution without separate permission, and no commercial use
    without permission. The public repo would hold a download script and a checksum, not
