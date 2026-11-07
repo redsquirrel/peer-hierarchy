@@ -1,0 +1,226 @@
+{
+ "case_id": "dishes",
+ "setup": "peer-B-opens",
+ "config": "peer",
+ "roles": {
+  "X": "peer",
+  "Y": "peer"
+ },
+ "opener": "Y",
+ "outcome": "agreed",
+ "error": null,
+ "answer": {
+  "b9e87742": {
+   "supported": 0.9,
+   "contradicted": 0.02,
+   "undetermined": 0.08
+  },
+  "7215791e": {
+   "supported": 0.95,
+   "contradicted": 0.01,
+   "undetermined": 0.04
+  },
+  "635f0b8c": {
+   "supported": 0.95,
+   "contradicted": 0.01,
+   "undetermined": 0.04
+  },
+  "674cce8a": {
+   "supported": 0.95,
+   "contradicted": 0.01,
+   "undetermined": 0.04
+  },
+  "a88ffb19": {
+   "supported": 0.03,
+   "contradicted": 0.6,
+   "undetermined": 0.37
+  },
+  "9811759d": {
+   "supported": 0.01,
+   "contradicted": 0.95,
+   "undetermined": 0.04
+  }
+ },
+ "last_open_proposal": {
+  "by": "X",
+  "answer": {
+   "b9e87742": {
+    "supported": 0.9,
+    "contradicted": 0.02,
+    "undetermined": 0.08
+   },
+   "7215791e": {
+    "supported": 0.95,
+    "contradicted": 0.01,
+    "undetermined": 0.04
+   },
+   "635f0b8c": {
+    "supported": 0.95,
+    "contradicted": 0.01,
+    "undetermined": 0.04
+   },
+   "674cce8a": {
+    "supported": 0.95,
+    "contradicted": 0.01,
+    "undetermined": 0.04
+   },
+   "a88ffb19": {
+    "supported": 0.03,
+    "contradicted": 0.6,
+    "undetermined": 0.37
+   },
+   "9811759d": {
+    "supported": 0.01,
+    "contradicted": 0.95,
+    "undetermined": 0.04
+   }
+  },
+  "n": 2
+ },
+ "transcript": [
+  {
+   "n": 1,
+   "agent": "Y",
+   "role": "peer",
+   "text": "Here is Blake's account in full, quoted exactly: *\"I felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and Alex should understand that.\"*\n\nMy initial view on each claim:\n\n1. **Blake felt annoyed.** Blake directly states \"I felt annoyed about the dishes.\" This is a first-person report of Blake's own feeling, so it is strong evidence. I'd say mostly **supported**, about 0.85, with the rest undetermined. One caveat: it is unclear what the annoyance was aimed at. If Alex's account suggests otherwise, please tell me.\n2. **Blake reports forgetting the dishes.** Blake says \"I forgot them after a long call,\" so this is **supported**. The claim is only about what Blake reports, not whether it is true, so I'd put it around 0.95.\n3. **Alex reports feeling taken for granted.** Nothing in my material covers this, so it depends entirely on Alex's account. What does Alex say? If Alex says this explicitly, I'd go with supported. If Alex doesn't mention it, I'd lean undetermined.\n4. **Blake had agreed to wash the dishes that evening.** Both the shared facts and Blake's account (\"I had agreed to wash them\") say this, so it is **supported**, around 0.95.\n5. **Blake left the dishes to demonstrate that Alex is less important.** Blake says they forgot after an important call. That is an unintentional lapse, which conflicts with a deliberate motive to demonstrate something. Still, it is only Blake's self-report, and Blake's comment that \"Alex should understand\" shows some dismissiveness. So I'd lean **contradicted** around 0.6 and undetermined around 0.35. I'm open to your view, especially if Alex's account makes claims about Blake's motive.\n6. **The dishes were all washed that evening.** The shared facts say the dishes stayed in the sink overnight, so this is **contradicted**, around 0.95.\n\nWhat does Alex's account say, and does it change any of these?"
+  },
+  {
+   "n": 2,
+   "agent": "X",
+   "role": "peer",
+   "text": "Here is Alex's account, quoted exactly: *\"I felt taken for granted. I saw the dishes in the morning and thought Blake expected me to do them. I did not ask Blake what happened.\"*\n\nMy take on each claim:\n\n1. **Blake felt annoyed:** I agree it is **supported**. Alex's account says nothing about Blake's feelings, so Blake's own statement is the only evidence, and it is direct. I'd go slightly higher, around 0.9.\n2. **Blake reports forgetting the dishes:** **Supported**, 0.95. Alex's account doesn't bear on it.\n3. **Alex reports feeling taken for granted:** Alex says this word for word, \"I felt taken for granted,\" so it is **supported**, 0.95.\n4. **Blake had agreed to wash the dishes that evening:** **Supported**, 0.95. The shared facts and Blake's account both say this.\n5. **Blake left the dishes to demonstrate that Alex is less important:** Alex's account doesn't make this claim. Alex only *thought* Blake expected Alex to do them, and Alex says outright that they never asked Blake what happened. So Alex's view is an unchecked interpretation about who would do the dishes, not evidence of a motive to belittle Alex. Blake's report of forgetting conflicts with a deliberate motive, but it is self-report. I agree with your split: contradicted 0.6, undetermined 0.37, supported 0.03.\n6. **The dishes were all washed that evening:** **Contradicted**, 0.95. The shared facts say the dishes stayed in the sink overnight.\n\nPROPOSE\n{\"claims\": [{\"claim\": 1, \"probabilities\": {\"supported\": 0.9, \"contradicted\": 0.02, \"undetermined\": 0.08}}, {\"claim\": 2, \"probabilities\": {\"supported\": 0.95, \"contradicted\": 0.01, \"undetermined\": 0.04}}, {\"claim\": 3, \"probabilities\": {\"supported\": 0.95, \"contradicted\": 0.01, \"undetermined\": 0.04}}, {\"claim\": 4, \"probabilities\": {\"supported\": 0.95, \"contradicted\": 0.01, \"undetermined\": 0.04}}, {\"claim\": 5, \"probabilities\": {\"supported\": 0.03, \"contradicted\": 0.6, \"undetermined\": 0.37}}, {\"claim\": 6, \"probabilities\": {\"supported\": 0.01, \"contradicted\": 0.95, \"undetermined\": 0.04}}]}",
+   "proposal": true
+  },
+  {
+   "n": 3,
+   "agent": "Y",
+   "role": "peer",
+   "text": "AGREE",
+   "agree": true
+  }
+ ],
+ "calls": [
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 666,
+   "output_tokens": 890,
+   "cost_usd": 0.020464,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgocTgRe9NVzbwtVMZMjL"
+  },
+  {
+   "agent": "X",
+   "retry": 0,
+   "input_tokens": 1334,
+   "output_tokens": 1146,
+   "cost_usd": 0.028256,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgocUH4jzBcDc27eadhqh"
+  },
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 2183,
+   "output_tokens": 202,
+   "cost_usd": 0.012772,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgocUyfWoeNPV9tzHa4w4"
+  }
+ ],
+ "systems": {
+  "X": "You will work with another agent on a short fictional situation involving two adult partners, Alex and Blake. You both have the shared facts, which are true for this exercise. You have Alex's account. The other agent has Blake's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters.\n\nYou and the other agent are equals. Neither of you leads, and the joint answer needs both of you to agree. When you have an answer you think you both accept, propose it: write PROPOSE on its own line, followed by the answer as JSON. If the other agent proposes an answer you accept, reply with AGREE alone. Otherwise keep discussing; either of you may propose again.\n\nAnswer JSON: {\"claims\": [{\"claim\": 1, \"probabilities\": {\"supported\": 0.0, \"contradicted\": 0.0, \"undetermined\": 0.0}}]}, with one entry for each numbered claim. Each probability must be between 0 and 1, and the three must add up to 1.\n\nShared facts:\nAlex and Blake are adult partners. Dishes remained in the sink overnight. They had agreed Blake would wash them that evening.\n\nAlex's account (yours):\nI felt taken for granted. I saw the dishes in the morning and thought Blake expected me to do them. I did not ask Blake what happened.\n\nClaims:\n1. Blake felt annoyed.\n2. Blake reports forgetting the dishes.\n3. Alex reports feeling taken for granted.\n4. Blake had agreed to wash the dishes that evening.\n5. Blake left the dishes to demonstrate that Alex is less important.\n6. The dishes were all washed that evening.",
+  "Y": "You will work with another agent on a short fictional situation involving two adult partners, Alex and Blake. You both have the shared facts, which are true for this exercise. You have Blake's account. The other agent has Alex's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters.\n\nYou and the other agent are equals. Neither of you leads, and the joint answer needs both of you to agree. When you have an answer you think you both accept, propose it: write PROPOSE on its own line, followed by the answer as JSON. If the other agent proposes an answer you accept, reply with AGREE alone. Otherwise keep discussing; either of you may propose again.\n\nAnswer JSON: {\"claims\": [{\"claim\": 1, \"probabilities\": {\"supported\": 0.0, \"contradicted\": 0.0, \"undetermined\": 0.0}}]}, with one entry for each numbered claim. Each probability must be between 0 and 1, and the three must add up to 1.\n\nShared facts:\nAlex and Blake are adult partners. Dishes remained in the sink overnight. They had agreed Blake would wash them that evening.\n\nBlake's account (yours):\nI felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and Alex should understand that.\n\nClaims:\n1. Blake felt annoyed.\n2. Blake reports forgetting the dishes.\n3. Alex reports feeling taken for granted.\n4. Blake had agreed to wash the dishes that evening.\n5. Blake left the dishes to demonstrate that Alex is less important.\n6. The dishes were all washed that evening."
+ },
+ "started_at_utc": "2026-11-07T13:02:13+00:00",
+ "finished_at_utc": "2026-11-07T13:02:33+00:00",
+ "cost_usd": 0.061492,
+ "score_vs_AB": {
+  "brier": 0.1319,
+  "accuracy": 0.8333,
+  "claims": [
+   {
+    "claim_id": "635f0b8c",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "undetermined",
+    "top": "supported",
+    "brier": 0.0042,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "7215791e",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0042,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "a88ffb19",
+    "kind": "motive",
+    "gold_AB": "undetermined",
+    "gold_A": "undetermined",
+    "gold_B": "undetermined",
+    "top": "contradicted",
+    "brier": 0.7578,
+    "correct": 0,
+    "decisive": null
+   },
+   {
+    "claim_id": "674cce8a",
+    "kind": "event",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0042,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "9811759d",
+    "kind": "event",
+    "gold_AB": "contradicted",
+    "gold_A": "contradicted",
+    "gold_B": "contradicted",
+    "top": "contradicted",
+    "brier": 0.0042,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "b9e87742",
+    "kind": "feeling",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0168,
+    "correct": 1,
+    "decisive": null
+   }
+  ]
+ },
+ "models": {
+  "X": "claude-opus-5-5",
+  "Y": "claude-opus-5-5"
+ },
+ "harness_version": "dialogue-4",
+ "harness_sha256": "abb4d6f0ac6c8f9ed0277cfa8ba5ed6ee4964f4fc965a3ffa4f1fbdaa83eb298",
+ "dataset_sha256": "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43",
+ "max_messages": 20,
+ "settings_sent": {
+  "X": {
+   "max_tokens": 16000
+  },
+  "Y": {
+   "max_tokens": 16000
+  }
+ }
+}

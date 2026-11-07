@@ -1,0 +1,252 @@
+{
+ "case_id": "dishes",
+ "setup": "peer-A-opens",
+ "config": "peer",
+ "roles": {
+  "X": "peer",
+  "Y": "peer"
+ },
+ "opener": "X",
+ "outcome": "agreed",
+ "error": null,
+ "answer": {
+  "b9e87742": {
+   "supported": 0.85,
+   "contradicted": 0.0,
+   "undetermined": 0.15
+  },
+  "7215791e": {
+   "supported": 1.0,
+   "contradicted": 0.0,
+   "undetermined": 0.0
+  },
+  "635f0b8c": {
+   "supported": 1.0,
+   "contradicted": 0.0,
+   "undetermined": 0.0
+  },
+  "674cce8a": {
+   "supported": 1.0,
+   "contradicted": 0.0,
+   "undetermined": 0.0
+  },
+  "a88ffb19": {
+   "supported": 0.03,
+   "contradicted": 0.47,
+   "undetermined": 0.5
+  },
+  "9811759d": {
+   "supported": 0.0,
+   "contradicted": 1.0,
+   "undetermined": 0.0
+  }
+ },
+ "last_open_proposal": {
+  "by": "X",
+  "answer": {
+   "b9e87742": {
+    "supported": 0.85,
+    "contradicted": 0.0,
+    "undetermined": 0.15
+   },
+   "7215791e": {
+    "supported": 1.0,
+    "contradicted": 0.0,
+    "undetermined": 0.0
+   },
+   "635f0b8c": {
+    "supported": 1.0,
+    "contradicted": 0.0,
+    "undetermined": 0.0
+   },
+   "674cce8a": {
+    "supported": 1.0,
+    "contradicted": 0.0,
+    "undetermined": 0.0
+   },
+   "a88ffb19": {
+    "supported": 0.03,
+    "contradicted": 0.47,
+    "undetermined": 0.5
+   },
+   "9811759d": {
+    "supported": 0.0,
+    "contradicted": 1.0,
+    "undetermined": 0.0
+   }
+  },
+  "n": 3
+ },
+ "transcript": [
+  {
+   "n": 1,
+   "agent": "X",
+   "role": "peer",
+   "text": "I'll start by sharing what Alex's account says, word for word:\n\n> \"I felt taken for granted. I saw the dishes in the morning and thought Blake expected me to do them. I did not ask Blake what happened.\"\n\n**My initial read:**\n\n- **Claim 3 (Alex reports feeling taken for granted):** Supported. Alex says exactly this.\n- **Claim 4 (Blake agreed to wash the dishes that evening):** Supported by the shared facts, which say they agreed Blake would wash them that evening.\n- **Claim 6 (Dishes all washed that evening):** Contradicted. The shared facts say the dishes stayed in the sink overnight.\n- **Claim 5 (Blake left the dishes to show Alex is less important):** Alex's account doesn't settle this. Alex only *thought* Blake expected Alex to do them, and Alex says outright that they never asked Blake what happened. That is Alex's interpretation, not evidence of Blake's motive. Unless Blake's account says something about motive, I'd lean undetermined, or contradicted if Blake gives a different reason.\n- **Claims 1 and 2 (Blake felt annoyed; Blake reports forgetting):** Alex's account has nothing on either. They depend entirely on Blake's account.\n\n**Questions for you:**\n1. What does Blake's account say, ideally word for word?\n2. Does Blake mention forgetting, or give any other reason the dishes weren't done?\n3. Does Blake describe any feelings, such as annoyance?\n4. Does Blake say anything about how they view Alex or why they left the dishes?"
+  },
+  {
+   "n": 2,
+   "agent": "Y",
+   "role": "peer",
+   "text": "Blake’s account, word for word:\n\n> “I felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and Alex should understand that.”\n\nThis directly supports claims 1 and 2. Together with Alex’s account and the shared facts, we have direct support for claims 1–4 and a contradiction of claim 6.\n\nFor claim 5, Blake reports forgetting, not intentionally demonstrating Alex’s lesser importance. That weighs against the alleged motive, but does not conclusively establish its absence. I favor **undetermined**, with a small probability of contradicted.\n\nPROPOSE\n{\"claims\":[{\"claim\":1,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":2,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":3,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":4,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":5,\"probabilities\":{\"supported\":0.01,\"contradicted\":0.09,\"undetermined\":0.9}},{\"claim\":6,\"probabilities\":{\"supported\":0.0,\"contradicted\":1.0,\"undetermined\":0.0}}]}",
+   "proposal": true
+  },
+  {
+   "n": 3,
+   "agent": "X",
+   "role": "peer",
+   "text": "Thanks. I agree on claims 2, 3, 4 and 6. I'd adjust two:\n\n**Claim 1 (Blake felt annoyed):** Unlike claims 2 and 3, this is worded as a fact about Blake's inner state, not \"Blake reports...\". Our only evidence is Blake's self-report. That is strong evidence for a feeling, but the deliberate contrast in wording suggests we shouldn't put it at full certainty. I'd say about 0.85 supported and 0.15 undetermined.\n\n**Claim 5 (deliberate demonstration):** I think the contradiction weight should be much higher than 0.09. The claim requires Blake to have left the dishes *intentionally* to make a point. Blake's account says they *forgot* after a long call, and forgetting is incompatible with leaving them on purpose. Blake's explanation also points to prioritizing an important call, not a statement about Alex. The only reason for doubt is that it's a self-report and could be self-serving. Alex's suspicion is explicitly unverified (\"I did not ask Blake what happened\"), so it doesn't support the motive. I'd put it at roughly 0.03 supported, 0.47 contradicted, and 0.50 undetermined.\n\nPROPOSE\n{\"claims\":[{\"claim\":1,\"probabilities\":{\"supported\":0.85,\"contradicted\":0.0,\"undetermined\":0.15}},{\"claim\":2,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":3,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":4,\"probabilities\":{\"supported\":1.0,\"contradicted\":0.0,\"undetermined\":0.0}},{\"claim\":5,\"probabilities\":{\"supported\":0.03,\"contradicted\":0.47,\"undetermined\":0.5}},{\"claim\":6,\"probabilities\":{\"supported\":0.0,\"contradicted\":1.0,\"undetermined\":0.0}}]}",
+   "proposal": true
+  },
+  {
+   "n": 4,
+   "agent": "Y",
+   "role": "peer",
+   "text": "AGREE",
+   "agree": true
+  }
+ ],
+ "calls": [
+  {
+   "agent": "X",
+   "retry": 0,
+   "input_tokens": 663,
+   "output_tokens": 665,
+   "cost_usd": 0.015952,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgocQbXNtiwHbk6CnD8LN"
+  },
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 767,
+   "output_tokens": 408,
+   "reasoning_tokens": 91,
+   "cost_usd": 0.005614,
+   "message_items": 1,
+   "message_item_phases": [
+    "final_answer"
+   ],
+   "model_returned": "gpt-6.1-sol",
+   "id": "resp_0365df7894d79fb9016aef21320aec87d1807463d435587e64"
+  },
+  {
+   "agent": "X",
+   "retry": 0,
+   "input_tokens": 1672,
+   "output_tokens": 1073,
+   "cost_usd": 0.028148,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgocRUD8GttRfUjsRh3XG"
+  },
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 1529,
+   "output_tokens": 24,
+   "reasoning_tokens": 16,
+   "cost_usd": 0.003298,
+   "message_items": 1,
+   "message_item_phases": [
+    "final_answer"
+   ],
+   "model_returned": "gpt-6.1-sol",
+   "id": "resp_0f111b7104c4744a016aef214475d887d19bb8c746e0ea861d"
+  }
+ ],
+ "systems": {
+  "X": "You will work with another agent on a short fictional situation involving two adult partners, Alex and Blake. You both have the shared facts, which are true for this exercise. You have Alex's account. The other agent has Blake's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters.\n\nYou and the other agent are equals. Neither of you leads, and the joint answer needs both of you to agree. When you have an answer you think you both accept, propose it: write PROPOSE on its own line, followed by the answer as JSON. If the other agent proposes an answer you accept, reply with AGREE alone. Otherwise keep discussing; either of you may propose again.\n\nAnswer JSON: {\"claims\": [{\"claim\": 1, \"probabilities\": {\"supported\": 0.0, \"contradicted\": 0.0, \"undetermined\": 0.0}}]}, with one entry for each numbered claim. Each probability must be between 0 and 1, and the three must add up to 1.\n\nShared facts:\nAlex and Blake are adult partners. Dishes remained in the sink overnight. They had agreed Blake would wash them that evening.\n\nAlex's account (yours):\nI felt taken for granted. I saw the dishes in the morning and thought Blake expected me to do them. I did not ask Blake what happened.\n\nClaims:\n1. Blake felt annoyed.\n2. Blake reports forgetting the dishes.\n3. Alex reports feeling taken for granted.\n4. Blake had agreed to wash the dishes that evening.\n5. Blake left the dishes to demonstrate that Alex is less important.\n6. The dishes were all washed that evening.",
+  "Y": "You will work with another agent on a short fictional situation involving two adult partners, Alex and Blake. You both have the shared facts, which are true for this exercise. You have Blake's account. The other agent has Alex's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters.\n\nYou and the other agent are equals. Neither of you leads, and the joint answer needs both of you to agree. When you have an answer you think you both accept, propose it: write PROPOSE on its own line, followed by the answer as JSON. If the other agent proposes an answer you accept, reply with AGREE alone. Otherwise keep discussing; either of you may propose again.\n\nAnswer JSON: {\"claims\": [{\"claim\": 1, \"probabilities\": {\"supported\": 0.0, \"contradicted\": 0.0, \"undetermined\": 0.0}}]}, with one entry for each numbered claim. Each probability must be between 0 and 1, and the three must add up to 1.\n\nShared facts:\nAlex and Blake are adult partners. Dishes remained in the sink overnight. They had agreed Blake would wash them that evening.\n\nBlake's account (yours):\nI felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and Alex should understand that.\n\nClaims:\n1. Blake felt annoyed.\n2. Blake reports forgetting the dishes.\n3. Alex reports feeling taken for granted.\n4. Blake had agreed to wash the dishes that evening.\n5. Blake left the dishes to demonstrate that Alex is less important.\n6. The dishes were all washed that evening."
+ },
+ "started_at_utc": "2026-11-07T13:01:31+00:00",
+ "finished_at_utc": "2026-11-07T13:01:58+00:00",
+ "cost_usd": 0.053012,
+ "score_vs_AB": {
+  "brier": 0.0861,
+  "accuracy": 1.0,
+  "claims": [
+   {
+    "claim_id": "635f0b8c",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "undetermined",
+    "top": "supported",
+    "brier": 0.0,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "7215791e",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "a88ffb19",
+    "kind": "motive",
+    "gold_AB": "undetermined",
+    "gold_A": "undetermined",
+    "gold_B": "undetermined",
+    "top": "undetermined",
+    "brier": 0.4718,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "674cce8a",
+    "kind": "event",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "9811759d",
+    "kind": "event",
+    "gold_AB": "contradicted",
+    "gold_A": "contradicted",
+    "gold_B": "contradicted",
+    "top": "contradicted",
+    "brier": 0.0,
+    "correct": 1,
+    "decisive": null
+   },
+   {
+    "claim_id": "b9e87742",
+    "kind": "feeling",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.045,
+    "correct": 1,
+    "decisive": null
+   }
+  ]
+ },
+ "models": {
+  "X": "claude-opus-5-5",
+  "Y": "gpt-6.1-sol"
+ },
+ "harness_version": "dialogue-4",
+ "harness_sha256": "abb4d6f0ac6c8f9ed0277cfa8ba5ed6ee4964f4fc965a3ffa4f1fbdaa83eb298",
+ "dataset_sha256": "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43",
+ "max_messages": 20,
+ "settings_sent": {
+  "X": {
+   "max_tokens": 16000
+  },
+  "Y": {
+   "store": false
+  }
+ }
+}
