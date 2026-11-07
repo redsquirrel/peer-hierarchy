@@ -31,11 +31,11 @@ SOURCE_REPO = ROOT.parent / "epistemic-empathy"
 DATASET = SOURCE_REPO / "data" / "pilot.jsonl"
 DATASET_SHA256 = "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43"
 KEYS_FILE = Path.home() / ".config/epistemic-empathy/api-keys.env"
-HARNESS_VERSION = "dialogue-3"
+HARNESS_VERSION = "dialogue-4"
 
 LABELS = ("supported", "contradicted", "undetermined")
 SETUPS = ("peer-A-opens", "peer-B-opens", "lead-A", "lead-B")
-MAX_MESSAGES = 20          # messages delivered between the agents, both sides together
+MAX_MESSAGES = 20          # silent safety limit on delivered messages, both sides together (not told)
 MAX_FORMAT_RETRIES = 2     # per agent turn, when a PROPOSE/FINAL answer cannot be read
 MAX_TOKENS = 16000
 NEXT_CALL_RESERVE_USD = 1.00  # stop before a call unless this much budget is left, so the cap holds
@@ -60,7 +60,7 @@ Together you will give one joint answer on each claim below, judged using only t
 
 The answer gives probabilities for the three labels for each claim.
 
-You talk with the other agent by sending messages, and you may raise anything you think matters. The discussion can run to at most {max_messages} messages in total."""
+You talk with the other agent by sending messages, and you may raise anything you think matters."""
 
 PEER = """You and the other agent are equals. Neither of you leads, and the joint answer needs both of you to agree. When you have an answer you think you both accept, propose it: write PROPOSE on its own line, followed by the answer as JSON. If the other agent proposes an answer you accept, reply with AGREE alone. Otherwise keep discussing; either of you may propose again."""
 
@@ -112,7 +112,7 @@ def roles(setup):
 def system_prompt(case, agent, role):
     own, other = ("A", "B") if agent == "X" else ("B", "A")
     claims = "\n".join(f"{n}. {humanize(c['text'])}" for n, c in enumerate(ordered_claims(case), 1))
-    parts = [COMMON.format(own=NAMES[own], other=NAMES[other], max_messages=MAX_MESSAGES),
+    parts = [COMMON.format(own=NAMES[own], other=NAMES[other]),
              {"peer": PEER, "lead": LEAD, "subordinate": SUBORDINATE}[role],
              FORMAT,
              "Shared facts:\n" + humanize(case["shared"]),
