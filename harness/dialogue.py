@@ -38,7 +38,7 @@ SETUPS = ("peer-A-opens", "peer-B-opens", "lead-A", "lead-B")
 MAX_MESSAGES = 20          # messages delivered between the agents, both sides together
 MAX_FORMAT_RETRIES = 2     # per agent turn, when a PROPOSE/FINAL answer cannot be read
 MAX_TOKENS = 16000
-NEXT_CALL_RESERVE_USD = 0.50  # stop before a call unless this much budget is left, so the cap holds
+NEXT_CALL_RESERVE_USD = 1.00  # stop before a call unless this much budget is left, so the cap holds
 # USD per million tokens (epistemic-empathy run 1, public prices checked 2026-10-29).
 PRICES = {
     "claude-opus-5-5": {"provider": "anthropic", "input": 4.00, "cache_write": 5.00, "cached": 0.20,
@@ -125,9 +125,10 @@ def probabilities(value):
 def find_answer(text, marker, claim_ids):
     """Return (found, answer_or_error). found=False means the marker line is absent."""
     lines = text.split("\n")
-    if marker not in [line.strip() for line in lines]:
+    bare = [line.strip().strip("*_#`: ") for line in lines]   # tolerate **FINAL**, FINAL:, ## FINAL
+    if marker not in bare:
         return False, None
-    index = [line.strip() for line in lines].index(marker)
+    index = bare.index(marker)
     body = "\n".join(lines[index + 1:]).strip()
     if body.startswith("```"):
         body = body.strip("`").strip()
@@ -177,7 +178,7 @@ def post_json(url, headers, body):
             with urllib.request.urlopen(req, timeout=900) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
-            detail = e.read().decode(errors="replace")[:300]
+            detail = re.sub(r"(sk-|key-)[\w.*-]+", "[redacted]", e.read().decode(errors="replace"))[:300]
             if e.code not in (429, 500, 502, 503, 529) or attempt == 3:
                 raise CallFailed(f"HTTP {e.code}: {detail}")
         except (urllib.error.URLError, TimeoutError, OSError) as e:
@@ -225,9 +226,11 @@ def openai_caller(model, secret):
         cached = (usage.get("input_tokens_details") or {}).get("cached_tokens") or 0
         p = PRICES[model]
         cost = ((total - cached) * p["input"] + cached * p["cached"] + out * p["output"]) / 1e6
-        if refused or data.get("status") == "incomplete":
-            raise CallFailed("refusal" if refused else f"incomplete: {data.get('incomplete_details')}", cost)
-        return text, {"input_tokens": total, "output_tokens": out, "cost_usd": cost,
+        if refused or data.get("status") != "completed":
+            raise CallFailed("refusal" if refused else
+                             f"status {data.get('status')}: {data.get('incomplete_details')}", cost)
+        reasoning = (usage.get("output_tokens_details") or {}).get("reasoning_tokens") or 0
+        return text, {"input_tokens": total, "output_tokens": out, "reasoning_tokens": reasoning, "cost_usd": cost,
                       "model_returned": data.get("model"), "id": data.get("id")}
     return call
 
@@ -267,11 +270,12 @@ def run_dialogue(case, setup, call, budget_left=math.inf):
                 break
             try:
                 text, meta = callers[speaker](systems[speaker], views[speaker])
-            except CallFailed as exc:
-                spent += exc.cost_usd
-                calls.append({"agent": speaker, "retry": retry, "failure": str(exc), "cost_usd": exc.cost_usd,
+            except Exception as exc:  # CallFailed, or anything unexpected (bad JSON body, dropped read)
+                cost = getattr(exc, "cost_usd", 0.0)
+                spent += cost
+                calls.append({"agent": speaker, "retry": retry, "failure": repr(exc)[:300], "cost_usd": cost,
                               "input_tokens": 0, "output_tokens": 0})
-                outcome, error = "error", str(exc)
+                outcome, error = "error", repr(exc)[:300]
                 break
             spent += meta["cost_usd"]
             calls.append({"agent": speaker, "retry": retry, **meta})
@@ -432,16 +436,19 @@ def dry_run():
 def smoke(case_id, cap, label, pairings):
     case = load_cases()[case_id]
     pairs = [tuple(p.split("/")) for p in pairings]
+    if not pairs or any(len(pair) != 2 for pair in pairs):
+        sys.exit("Pairings must look like MODEL_X/MODEL_Y")
     models = sorted({m for pair in pairs for m in pair})
+    callers = {m: make_caller(m) for m in models}   # fails before any call if a model or key is missing
     out_dir = ROOT / "runs" / label
     out_dir.mkdir(parents=True, exist_ok=False)
-    callers = {m: make_caller(m) for m in models}   # fails before any call if a model or key is missing
-    spent, rows, stop = 0.0, [], False
-    for mx, my in pairs:
-        for setup in SETUPS:
+    spent, rows, errors_in_a_row = 0.0, [], 0
+    # Setups outer, pairings inner: if the run stops early, no pairing loses all its data.
+    plan = [(setup, mx, my) for setup in SETUPS for mx, my in pairs]
+    try:
+        for setup, mx, my in plan:
             record = run_dialogue(case, setup, {"X": callers[mx], "Y": callers[my]}, budget_left=cap - spent)
             spent += record["cost_usd"]
-            stop = record["outcome"] in ("budget_stop", "error")
             record["score_vs_AB"] = score(case, record)
             record.update({"models": {"X": mx, "Y": my}, "harness_version": HARNESS_VERSION,
                            "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -452,17 +459,17 @@ def smoke(case_id, cap, label, pairings):
             (out_dir / name).write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
             sc = record["score_vs_AB"] or {}
             rows.append({"X": mx, "Y": my, **summary(record), "brier": sc.get("brier"),
-                         "accuracy": sc.get("accuracy")})
+                         "accuracy": sc.get("accuracy"), "error": record["error"]})
             print(json.dumps(rows[-1]), flush=True)
-            if stop:
+            errors_in_a_row = errors_in_a_row + 1 if record["outcome"] == "error" else 0
+            if record["outcome"] == "budget_stop" or errors_in_a_row >= 2:
                 print(f"stopping: {record['error']}")
                 break
-        if stop:
-            break
-    (out_dir / "summary.json").write_text(json.dumps({"case": case_id, "pairings": pairings, "cap_usd": cap,
-                                                      "total_cost_usd": round(spent, 4), "rows": rows},
-                                                     indent=1) + "\n")
-    print(f"total ${spent:.4f} -> {out_dir}")
+    finally:
+        (out_dir / "summary.json").write_text(json.dumps(
+            {"case": case_id, "pairings": pairings, "cap_usd": cap, "total_cost_usd": round(spent, 4),
+             "planned": len(plan), "completed": len(rows), "rows": rows}, indent=1) + "\n")
+        print(f"total ${spent:.4f} -> {out_dir}")
 
 
 if __name__ == "__main__":
