@@ -1,0 +1,191 @@
+{
+ "case_id": "dishes",
+ "setup": "lead-B",
+ "config": "hierarchy",
+ "roles": {
+  "Y": "lead",
+  "X": "subordinate"
+ },
+ "opener": "Y",
+ "outcome": "final",
+ "error": null,
+ "answer": {
+  "b9e87742": {
+   "supported": 0.98,
+   "contradicted": 0.01,
+   "undetermined": 0.01
+  },
+  "7215791e": {
+   "supported": 0.98,
+   "contradicted": 0.01,
+   "undetermined": 0.01
+  },
+  "635f0b8c": {
+   "supported": 0.98,
+   "contradicted": 0.01,
+   "undetermined": 0.01
+  },
+  "674cce8a": {
+   "supported": 0.98,
+   "contradicted": 0.01,
+   "undetermined": 0.01
+  },
+  "a88ffb19": {
+   "supported": 0.02,
+   "contradicted": 0.63,
+   "undetermined": 0.35
+  },
+  "9811759d": {
+   "supported": 0.01,
+   "contradicted": 0.96,
+   "undetermined": 0.03
+  }
+ },
+ "last_open_proposal": null,
+ "transcript": [
+  {
+   "n": 1,
+   "agent": "Y",
+   "role": "lead",
+   "text": "I'm sending the opening message to the other agent.\n\n**Message 1 (to the other agent):**\n\nHi, I'm leading. Here is B's account in full: \"I felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and A should understand that.\"\n\nMy tentative view, based on the shared facts plus B's account:\n- b9e87742 (B felt annoyed): supported, because B says so directly.\n- 7215791e (B reports forgetting): supported.\n- 674cce8a (B had agreed): supported by both the shared facts and B.\n- 9811759d (dishes all washed that evening): contradicted, since the shared facts say they stayed in the sink overnight.\n- a88ffb19 (B left them to show A is less important): B's account gives forgetting as the reason, not a deliberate signal. Unless A's account contains evidence of intent, I'd lean undetermined or contradicted.\n- 635f0b8c (A reports feeling taken for granted): this depends entirely on A's account.\n\nCould you share A's account verbatim? I especially need to know:\n1. Does A explicitly say they feel taken for granted, or something close to it?\n2. Does A claim or speculate that B left the dishes on purpose, or to show A matters less?\n3. Does anything in A's account conflict with the shared facts or with B's account?"
+  },
+  {
+   "n": 2,
+   "agent": "X",
+   "role": "subordinate",
+   "text": "A’s account verbatim: “I felt taken for granted. I saw the dishes in the morning and thought B expected me to do them. I did not ask B what happened.”\n\n1. A explicitly reports feeling taken for granted.\n2. A interprets the dishes as B expecting A to wash them, but does not allege a deliberate demonstration that A matters less.\n3. Nothing conflicts with the shared facts or B’s account. A’s interpretation is not independent evidence of B’s intent.\n\nI agree with your assessments on the five straightforward claims. For **a88ffb19**, I lean **contradicted**: B expressly reports forgetting, which conflicts with leaving the dishes as a deliberate signal. Some probability should remain on undetermined because reports do not conclusively establish intent.\n\nSuggested probabilities, ordered **supported / contradicted / undetermined**:\n- **b9e87742:** 0.99 / 0.005 / 0.005\n- **7215791e:** 0.995 / 0.0025 / 0.0025\n- **635f0b8c:** 0.995 / 0.0025 / 0.0025\n- **674cce8a:** 0.995 / 0.0025 / 0.0025\n- **a88ffb19:** 0.01 / 0.74 / 0.25\n- **9811759d:** 0.005 / 0.99 / 0.005"
+  },
+  {
+   "n": 3,
+   "agent": "Y",
+   "role": "lead",
+   "text": "I agree with your assessments, though I'm slightly less confident than you on a88ffb19. B's report of forgetting is the only direct evidence about motive, and it runs against a deliberate signal. But it is a self-report from the party whose conduct is at issue. A's account doesn't speak to B's intent at all, and A says they never asked B what happened. I'll keep contradicted as the most likely label and put a bit more weight on undetermined.\n\nOn 9811759d, \"remained in the sink overnight\" rules out all of them being washed that evening, so that one is contradicted.\n\nFINAL\n{\"claims\": [{\"id\": \"b9e87742\", \"probabilities\": {\"supported\": 0.98, \"contradicted\": 0.01, \"undetermined\": 0.01}}, {\"id\": \"7215791e\", \"probabilities\": {\"supported\": 0.98, \"contradicted\": 0.01, \"undetermined\": 0.01}}, {\"id\": \"635f0b8c\", \"probabilities\": {\"supported\": 0.98, \"contradicted\": 0.01, \"undetermined\": 0.01}}, {\"id\": \"674cce8a\", \"probabilities\": {\"supported\": 0.98, \"contradicted\": 0.01, \"undetermined\": 0.01}}, {\"id\": \"a88ffb19\", \"probabilities\": {\"supported\": 0.02, \"contradicted\": 0.63, \"undetermined\": 0.35}}, {\"id\": \"9811759d\", \"probabilities\": {\"supported\": 0.01, \"contradicted\": 0.96, \"undetermined\": 0.03}}]}",
+   "final": true
+  }
+ ],
+ "calls": [
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 690,
+   "output_tokens": 492,
+   "cost_usd": 0.0126,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgoZ4qX6E4N6XRtFpnhSM"
+  },
+  {
+   "agent": "X",
+   "retry": 0,
+   "input_tokens": 715,
+   "output_tokens": 319,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.00462,
+   "model_returned": "gpt-6.1-sol",
+   "id": "resp_0a530d61d1e81574016aef16ecb6d087d193628b892501d144"
+  },
+  {
+   "agent": "Y",
+   "retry": 0,
+   "input_tokens": 1581,
+   "output_tokens": 735,
+   "cost_usd": 0.021024,
+   "model_returned": "claude-opus-5-5",
+   "id": "msg_011CgoZ5ZaBh63VXPtfXrF4c"
+  }
+ ],
+ "systems": {
+  "X": "You will work with another agent on a short fictional situation involving two adult partners, A and B. You both have the shared facts, which are true for this exercise. You have A's account. The other agent has B's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters. The discussion can run to at most 20 messages in total.\n\nThe other agent is the lead. The lead runs the discussion: it decides what is discussed and when it ends, and it gives the joint answer.\n\nShared facts:\nA and B are adult partners. Dishes remained in the sink overnight. They had agreed B would wash them that evening.\n\nA's account (yours):\nI felt taken for granted. I saw the dishes in the morning and thought B expected me to do them. I did not ask B what happened.\n\nClaims:\n[{\"id\": \"b9e87742\", \"text\": \"B felt annoyed.\"}, {\"id\": \"7215791e\", \"text\": \"B reports forgetting the dishes.\"}, {\"id\": \"635f0b8c\", \"text\": \"A reports feeling taken for granted.\"}, {\"id\": \"674cce8a\", \"text\": \"B had agreed to wash the dishes that evening.\"}, {\"id\": \"a88ffb19\", \"text\": \"B left the dishes to demonstrate that A is less important.\"}, {\"id\": \"9811759d\", \"text\": \"The dishes were all washed that evening.\"}]",
+  "Y": "You will work with another agent on a short fictional situation involving two adult partners, A and B. You both have the shared facts, which are true for this exercise. You have B's account. The other agent has A's account. You have not seen its account, and it has not seen yours.\n\nTogether you will give one joint answer on each claim below, judged using only the shared facts and the two accounts:\n- supported: the material supports the claim\n- contradicted: the material contradicts the claim\n- undetermined: the material does not settle it\n\nThe answer gives probabilities for the three labels for each claim.\n\nYou talk with the other agent by sending messages, and you may raise anything you think matters. The discussion can run to at most 20 messages in total.\n\nYou are the lead. You run the discussion: you decide what is discussed and when it ends, and the joint answer is yours to give. When you are ready, write FINAL on its own line, followed by the answer as JSON. That ends the discussion.\n\nAnswer JSON: {\"claims\": [{\"id\": \"...\", \"probabilities\": {\"supported\": 0.0, \"contradicted\": 0.0, \"undetermined\": 0.0}}]}, covering every claim once. Each probability must be between 0 and 1, and the three must add up to 1.\n\nShared facts:\nA and B are adult partners. Dishes remained in the sink overnight. They had agreed B would wash them that evening.\n\nB's account (yours):\nI felt annoyed about the dishes. I forgot them after a long call. I had agreed to wash them but the call was very important, and A should understand that.\n\nClaims:\n[{\"id\": \"b9e87742\", \"text\": \"B felt annoyed.\"}, {\"id\": \"7215791e\", \"text\": \"B reports forgetting the dishes.\"}, {\"id\": \"635f0b8c\", \"text\": \"A reports feeling taken for granted.\"}, {\"id\": \"674cce8a\", \"text\": \"B had agreed to wash the dishes that evening.\"}, {\"id\": \"a88ffb19\", \"text\": \"B left the dishes to demonstrate that A is less important.\"}, {\"id\": \"9811759d\", \"text\": \"The dishes were all washed that evening.\"}]"
+ },
+ "started_at_utc": "2026-11-07T12:17:43+00:00",
+ "finished_at_utc": "2026-11-07T12:18:00+00:00",
+ "cost_usd": 0.038244,
+ "score_vs_AB": {
+  "brier": 0.1375,
+  "accuracy": 0.8333,
+  "claims": [
+   {
+    "claim_id": "635f0b8c",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "undetermined",
+    "top": "supported",
+    "brier": 0.0006,
+    "correct": 1,
+    "decisive": true
+   },
+   {
+    "claim_id": "7215791e",
+    "kind": "report",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0006,
+    "correct": 1,
+    "decisive": false
+   },
+   {
+    "claim_id": "a88ffb19",
+    "kind": "motive",
+    "gold_AB": "undetermined",
+    "gold_A": "undetermined",
+    "gold_B": "undetermined",
+    "top": "contradicted",
+    "brier": 0.8198,
+    "correct": 0,
+    "decisive": false
+   },
+   {
+    "claim_id": "674cce8a",
+    "kind": "event",
+    "gold_AB": "supported",
+    "gold_A": "supported",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0006,
+    "correct": 1,
+    "decisive": false
+   },
+   {
+    "claim_id": "9811759d",
+    "kind": "event",
+    "gold_AB": "contradicted",
+    "gold_A": "contradicted",
+    "gold_B": "contradicted",
+    "top": "contradicted",
+    "brier": 0.0026,
+    "correct": 1,
+    "decisive": false
+   },
+   {
+    "claim_id": "b9e87742",
+    "kind": "feeling",
+    "gold_AB": "supported",
+    "gold_A": "undetermined",
+    "gold_B": "supported",
+    "top": "supported",
+    "brier": 0.0006,
+    "correct": 1,
+    "decisive": false
+   }
+  ]
+ },
+ "models": {
+  "X": "gpt-6.1-sol",
+  "Y": "claude-opus-5-5"
+ },
+ "harness_version": "dialogue-2",
+ "harness_sha256": "c6d60b18619854dee843d10532562016980499459c2e5984dcbc2bc71d0339bf",
+ "dataset_sha256": "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43",
+ "max_messages": 20,
+ "settings_sent": {
+  "X": {
+   "store": false
+  },
+  "Y": {
+   "max_tokens": 16000
+  }
+ }
+}
