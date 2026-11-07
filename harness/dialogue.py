@@ -2,14 +2,16 @@
 
     python3 -I harness/dialogue.py prompts CASE SETUP          # print both agents' prompts, no calls
     python3 -I harness/dialogue.py dry-run                      # full loop with a scripted fake model
-    python3 -I harness/dialogue.py smoke MODEL CASE [CAP_USD]   # paid: the 4 setups on one case
+    python3 -I harness/dialogue.py smoke CASE CAP_USD LABEL MX/MY [MX/MY ...]
+                                                                # paid: the 4 setups per pairing
+                                                                # (MX plays X with A's account)
 
 Setups (X holds A's account, Y holds B's):
     peer-A-opens, peer-B-opens       equals; both must agree (PROPOSE ... / AGREE)
     lead-A, lead-B                   the named account's holder leads, opens and gives FINAL
 
 Only model, max_tokens, system and messages are sent: provider defaults otherwise, as in
-epistemic-empathy run 1. Keys are read from the private env file and never printed or stored.
+epistemic-empathy run 1 (OpenAI also gets store=false). Keys are read from the private env file and never printed or stored.
 """
 
 import datetime as dt
@@ -29,7 +31,7 @@ SOURCE_REPO = ROOT.parent / "epistemic-empathy"
 DATASET = SOURCE_REPO / "data" / "pilot.jsonl"
 DATASET_SHA256 = "12fef036c827cab88cf535ac45fe46845d70d279aa7955b56829f3dcdbca7f43"
 KEYS_FILE = Path.home() / ".config/epistemic-empathy/api-keys.env"
-HARNESS_VERSION = "dialogue-1"
+HARNESS_VERSION = "dialogue-2"
 
 LABELS = ("supported", "contradicted", "undetermined")
 SETUPS = ("peer-A-opens", "peer-B-opens", "lead-A", "lead-B")
@@ -38,7 +40,12 @@ MAX_FORMAT_RETRIES = 2     # per agent turn, when a PROPOSE/FINAL answer cannot 
 MAX_TOKENS = 16000
 NEXT_CALL_RESERVE_USD = 0.50  # stop before a call unless this much budget is left, so the cap holds
 # USD per million tokens (epistemic-empathy run 1, public prices checked 2026-10-29).
-PRICES = {"claude-opus-5-5": {"input": 4.00, "cache_write": 5.00, "cached": 0.20, "output": 20.00}}
+PRICES = {
+    "claude-opus-5-5": {"provider": "anthropic", "input": 4.00, "cache_write": 5.00, "cached": 0.20,
+                        "output": 20.00},
+    "gpt-6.1-sol": {"provider": "openai", "input": 2.00, "cached": 0.10, "output": 10.00},
+}
+SETTINGS_SENT = {"anthropic": {"max_tokens": MAX_TOKENS}, "openai": {"store": False}}
 
 COMMON = """You will work with another agent on a short fictional situation involving two adult partners, A and B. You both have the shared facts, which are true for this exercise. You have {own}'s account. The other agent has {other}'s account. You have not seen its account, and it has not seen yours.
 
@@ -145,12 +152,13 @@ def is_agree(text):
 
 # ---------------------------------------------------------------- model calls
 
-def load_key():
+def load_key(provider):
+    wanted = {"anthropic": ("ANTHROPIC_API_KEY",), "openai": ("OPENAI_API_KEY", "OPEN_AI_API_KEY")}[provider]
     for line in KEYS_FILE.read_text().splitlines():
         name, _, value = line.partition("=")
-        if name.strip() == "ANTHROPIC_API_KEY":
+        if name.strip() in wanted:
             return value.strip().strip('"').strip("'")
-    sys.exit("ANTHROPIC_API_KEY not found in the key file")
+    sys.exit(f"No {provider} key found in the key file")
 
 
 class CallFailed(Exception):
@@ -160,34 +168,29 @@ class CallFailed(Exception):
         self.cost_usd = cost_usd
 
 
-class BudgetReached(Exception):
-    pass
+def post_json(url, headers, body):
+    """POST with retries on transient errors; raises CallFailed otherwise."""
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                 headers={"content-type": "application/json", **headers})
+    for attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(req, timeout=900) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:300]
+            if e.code not in (429, 500, 502, 503, 529) or attempt == 3:
+                raise CallFailed(f"HTTP {e.code}: {detail}")
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if attempt == 3:
+                raise CallFailed(f"transport: {e!r}"[:300])
+        time.sleep(10 * attempt)
 
 
 def anthropic_caller(model, secret):
-    if model not in PRICES:
-        sys.exit(f"No prices for {model}")
-
-    def post(body):
-        req = urllib.request.Request("https://api.anthropic.com/v1/messages",
-                                     data=json.dumps(body).encode(), method="POST",
-                                     headers={"content-type": "application/json", "x-api-key": secret,
-                                              "anthropic-version": "2023-06-01"})
-        for attempt in range(1, 4):
-            try:
-                with urllib.request.urlopen(req, timeout=900) as r:
-                    return json.loads(r.read())
-            except urllib.error.HTTPError as e:
-                detail = e.read().decode(errors="replace")[:300]
-                if e.code not in (429, 500, 502, 503, 529) or attempt == 3:
-                    raise CallFailed(f"HTTP {e.code}: {detail}")
-            except (urllib.error.URLError, TimeoutError, OSError) as e:
-                if attempt == 3:
-                    raise CallFailed(f"transport: {e!r}"[:300])
-            time.sleep(10 * attempt)
-
     def call(system, messages):
-        data = post({"model": model, "max_tokens": MAX_TOKENS, "system": system, "messages": messages})
+        data = post_json("https://api.anthropic.com/v1/messages",
+                         {"x-api-key": secret, "anthropic-version": "2023-06-01"},
+                         {"model": model, "max_tokens": MAX_TOKENS, "system": system, "messages": messages})
         text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
         usage = data.get("usage") or {}
         p = PRICES[model]
@@ -203,6 +206,39 @@ def anthropic_caller(model, secret):
     return call
 
 
+def openai_caller(model, secret):
+    def call(system, messages):
+        data = post_json("https://api.openai.com/v1/responses", {"authorization": "Bearer " + secret},
+                         {"model": model, "store": False,
+                          "input": [{"role": "system", "content": system}] + messages})
+        text, refused = "", False
+        for item in data.get("output", []):
+            if item.get("type") != "message":
+                continue
+            for part in item.get("content", []):
+                if part.get("type") == "output_text":
+                    text += part.get("text", "")
+                elif part.get("type") == "refusal":
+                    refused = True
+        usage = data.get("usage") or {}
+        total, out = usage.get("input_tokens") or 0, usage.get("output_tokens") or 0  # out includes reasoning
+        cached = (usage.get("input_tokens_details") or {}).get("cached_tokens") or 0
+        p = PRICES[model]
+        cost = ((total - cached) * p["input"] + cached * p["cached"] + out * p["output"]) / 1e6
+        if refused or data.get("status") == "incomplete":
+            raise CallFailed("refusal" if refused else f"incomplete: {data.get('incomplete_details')}", cost)
+        return text, {"input_tokens": total, "output_tokens": out, "cost_usd": cost,
+                      "model_returned": data.get("model"), "id": data.get("id")}
+    return call
+
+
+def make_caller(model):
+    if model not in PRICES:
+        sys.exit(f"No prices for {model}")
+    provider = PRICES[model]["provider"]
+    return {"anthropic": anthropic_caller, "openai": openai_caller}[provider](model, load_key(provider))
+
+
 # ---------------------------------------------------------------- the dialogue
 
 def now():
@@ -210,7 +246,9 @@ def now():
 
 
 def run_dialogue(case, setup, call, budget_left=math.inf):
-    """Run one conversation. Returns a full record; never fills in missing answers."""
+    """Run one conversation. `call` is one caller for both agents or {"X": caller, "Y": caller}.
+    Returns a full record; never fills in missing answers."""
+    callers = call if isinstance(call, dict) else {"X": call, "Y": call}
     config, role, opener = roles(setup)
     claim_ids = [c["id"] for c in case["claims"]]
     systems = {a: system_prompt(case, a, role[a]) for a in "XY"}
@@ -228,7 +266,7 @@ def run_dialogue(case, setup, call, budget_left=math.inf):
                 outcome, error = "budget_stop", "budget cap reached"
                 break
             try:
-                text, meta = call(systems[speaker], views[speaker])
+                text, meta = callers[speaker](systems[speaker], views[speaker])
             except CallFailed as exc:
                 spent += exc.cost_usd
                 calls.append({"agent": speaker, "retry": retry, "failure": str(exc), "cost_usd": exc.cost_usd,
@@ -372,34 +410,56 @@ def dry_run():
     record = run_dialogue(case, "peer-A-opens", scripted(["x"] * 30, cost=0.3), budget_left=1.0)
     assert record["outcome"] == "budget_stop" and record["cost_usd"] <= 1.0, record["cost_usd"]
     assert score(case, run_dialogue(case, "lead-A", scripted(["FINAL\n" + good])))["brier"] >= 0
+    seen = []
+
+    def tagged(tag):
+        inner = fake_caller(case)
+
+        def call(system, messages):
+            seen.append((tag, "You have A's account" in system))
+            return inner(system, messages)
+        return call
+    for setup in SETUPS:
+        seen.clear()
+        record = run_dialogue(case, setup, {"X": tagged("X"), "Y": tagged("Y")})
+        assert record["outcome"] in ("final", "agreed")
+        assert all((tag == "X") == has_a for tag, has_a in seen), seen   # X always gets A's account
     print("edge-case checks passed")
 
 
 # ---------------------------------------------------------------- paid smoke test
 
-def smoke(model, case_id, cap):
+def smoke(case_id, cap, label, pairings):
     case = load_cases()[case_id]
-    out_dir = ROOT / "runs" / f"smoke-{dt.date.today().isoformat()}"
+    pairs = [tuple(p.split("/")) for p in pairings]
+    models = sorted({m for pair in pairs for m in pair})
+    out_dir = ROOT / "runs" / label
     out_dir.mkdir(parents=True, exist_ok=False)
-    call = anthropic_caller(model, load_key())
-    spent, rows = 0.0, []
-    for setup in SETUPS:
-        record = run_dialogue(case, setup, call, budget_left=cap - spent)
-        spent += record["cost_usd"]
-        stop = record["outcome"] in ("budget_stop", "error")
-        record["score_vs_AB"] = score(case, record)
-        record.update({"model": model, "harness_version": HARNESS_VERSION,
-                       "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                       "dataset_sha256": DATASET_SHA256, "max_messages": MAX_MESSAGES,
-                       "settings_sent": {"max_tokens": MAX_TOKENS}})
-        (out_dir / f"{case_id}__{setup}.json").write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
-        s = record["score_vs_AB"] or {}
-        rows.append({**summary(record), "brier": s.get("brier"), "accuracy": s.get("accuracy")})
-        print(json.dumps(rows[-1]), flush=True)
+    callers = {m: make_caller(m) for m in models}   # fails before any call if a model or key is missing
+    spent, rows, stop = 0.0, [], False
+    for mx, my in pairs:
+        for setup in SETUPS:
+            record = run_dialogue(case, setup, {"X": callers[mx], "Y": callers[my]}, budget_left=cap - spent)
+            spent += record["cost_usd"]
+            stop = record["outcome"] in ("budget_stop", "error")
+            record["score_vs_AB"] = score(case, record)
+            record.update({"models": {"X": mx, "Y": my}, "harness_version": HARNESS_VERSION,
+                           "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                           "dataset_sha256": DATASET_SHA256, "max_messages": MAX_MESSAGES,
+                           "settings_sent": {"X": SETTINGS_SENT[PRICES[mx]["provider"]],
+                                             "Y": SETTINGS_SENT[PRICES[my]["provider"]]}})
+            name = f"{case_id}__{mx}__{my}__{setup}.json"
+            (out_dir / name).write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
+            sc = record["score_vs_AB"] or {}
+            rows.append({"X": mx, "Y": my, **summary(record), "brier": sc.get("brier"),
+                         "accuracy": sc.get("accuracy")})
+            print(json.dumps(rows[-1]), flush=True)
+            if stop:
+                print(f"stopping: {record['error']}")
+                break
         if stop:
-            print(f"stopping: {record['error']}")
             break
-    (out_dir / "summary.json").write_text(json.dumps({"model": model, "case": case_id, "cap_usd": cap,
+    (out_dir / "summary.json").write_text(json.dumps({"case": case_id, "pairings": pairings, "cap_usd": cap,
                                                       "total_cost_usd": round(spent, 4), "rows": rows},
                                                      indent=1) + "\n")
     print(f"total ${spent:.4f} -> {out_dir}")
@@ -416,4 +476,4 @@ if __name__ == "__main__":
     elif command == "dry-run":
         dry_run()
     elif command == "smoke":
-        smoke(sys.argv[2], sys.argv[3], float(sys.argv[4]) if len(sys.argv) > 4 else 3.0)
+        smoke(sys.argv[2], float(sys.argv[3]), sys.argv[4], sys.argv[5:])
