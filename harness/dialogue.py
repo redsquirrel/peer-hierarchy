@@ -13,9 +13,11 @@ epistemic-empathy run 1. Keys are read from the private env file and never print
 """
 
 import datetime as dt
+import time
 import hashlib
 import json
 import math
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -34,6 +36,7 @@ SETUPS = ("peer-A-opens", "peer-B-opens", "lead-A", "lead-B")
 MAX_MESSAGES = 20          # messages delivered between the agents, both sides together
 MAX_FORMAT_RETRIES = 2     # per agent turn, when a PROPOSE/FINAL answer cannot be read
 MAX_TOKENS = 16000
+NEXT_CALL_RESERVE_USD = 0.50  # stop before a call unless this much budget is left, so the cap holds
 # USD per million tokens (epistemic-empathy run 1, public prices checked 2026-10-29).
 PRICES = {"claude-opus-5-5": {"input": 4.00, "cache_write": 5.00, "cached": 0.20, "output": 20.00}}
 
@@ -135,7 +138,9 @@ def find_answer(text, marker, claim_ids):
 
 
 def is_agree(text):
-    return text.strip().rstrip(".").upper() == "AGREE"
+    """The message starts with the word AGREE in capitals (markdown and trailing text tolerated;
+    the full text is kept, so conditional agreements can be flagged in analysis)."""
+    return re.match(r"[*_\s]*AGREE\b", text) is not None
 
 
 # ---------------------------------------------------------------- model calls
@@ -148,20 +153,41 @@ def load_key():
     sys.exit("ANTHROPIC_API_KEY not found in the key file")
 
 
+class CallFailed(Exception):
+    """A model call that cannot be used. cost_usd is what it still cost."""
+    def __init__(self, reason, cost_usd=0.0):
+        super().__init__(reason)
+        self.cost_usd = cost_usd
+
+
+class BudgetReached(Exception):
+    pass
+
+
 def anthropic_caller(model, secret):
-    def call(system, messages):
-        body = {"model": model, "max_tokens": MAX_TOKENS, "system": system, "messages": messages}
+    if model not in PRICES:
+        sys.exit(f"No prices for {model}")
+
+    def post(body):
         req = urllib.request.Request("https://api.anthropic.com/v1/messages",
                                      data=json.dumps(body).encode(), method="POST",
                                      headers={"content-type": "application/json", "x-api-key": secret,
                                               "anthropic-version": "2023-06-01"})
-        try:
-            with urllib.request.urlopen(req, timeout=900) as r:
-                data = json.loads(r.read())
-        except urllib.error.HTTPError as e:
-            raise RuntimeError(f"HTTP {e.code}: {e.read().decode(errors='replace')[:500]}")
-        if data.get("stop_reason") in ("refusal", "max_tokens"):
-            raise RuntimeError(f"stop_reason {data['stop_reason']}")
+        for attempt in range(1, 4):
+            try:
+                with urllib.request.urlopen(req, timeout=900) as r:
+                    return json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                detail = e.read().decode(errors="replace")[:300]
+                if e.code not in (429, 500, 502, 503, 529) or attempt == 3:
+                    raise CallFailed(f"HTTP {e.code}: {detail}")
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                if attempt == 3:
+                    raise CallFailed(f"transport: {e!r}"[:300])
+            time.sleep(10 * attempt)
+
+    def call(system, messages):
+        data = post({"model": model, "max_tokens": MAX_TOKENS, "system": system, "messages": messages})
         text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
         usage = data.get("usage") or {}
         p = PRICES[model]
@@ -169,6 +195,8 @@ def anthropic_caller(model, secret):
                 + (usage.get("cache_creation_input_tokens") or 0) * p["cache_write"]
                 + (usage.get("cache_read_input_tokens") or 0) * p["cached"]
                 + (usage.get("output_tokens") or 0) * p["output"]) / 1e6
+        if data.get("stop_reason") in ("refusal", "max_tokens"):
+            raise CallFailed(f"stop_reason {data['stop_reason']}", cost)
         return text, {"input_tokens": usage.get("input_tokens") or 0,
                       "output_tokens": usage.get("output_tokens") or 0,
                       "cost_usd": cost, "model_returned": data.get("model"), "id": data.get("id")}
@@ -189,29 +217,39 @@ def run_dialogue(case, setup, call, budget_left=math.inf):
     views = {"X": [], "Y": []}           # each agent's own message history (API format)
     views[opener].append({"role": "user", "content": OPEN})
     transcript, calls, outcome, answer, pending = [], [], None, None, None
-    speaker, spent = opener, 0.0
+    speaker, spent, error, last_proposal = opener, 0.0, None, None
     started = now()
     while outcome is None:
         if len(transcript) >= MAX_MESSAGES:
             outcome = "message_cap"
             break
         for retry in range(MAX_FORMAT_RETRIES + 1):
-            if spent >= budget_left:
-                raise RuntimeError("budget cap reached")
-            text, meta = call(systems[speaker], views[speaker])
+            if spent + NEXT_CALL_RESERVE_USD > budget_left:
+                outcome, error = "budget_stop", "budget cap reached"
+                break
+            try:
+                text, meta = call(systems[speaker], views[speaker])
+            except CallFailed as exc:
+                spent += exc.cost_usd
+                calls.append({"agent": speaker, "retry": retry, "failure": str(exc), "cost_usd": exc.cost_usd,
+                              "input_tokens": 0, "output_tokens": 0})
+                outcome, error = "error", str(exc)
+                break
             spent += meta["cost_usd"]
             calls.append({"agent": speaker, "retry": retry, **meta})
-            views[speaker].append({"role": "assistant", "content": text})
+            views[speaker].append({"role": "assistant", "content": text or "(empty)"})
             marker = {"peer": "PROPOSE", "lead": "FINAL", "subordinate": None}[role[speaker]]
             found, parsed = find_answer(text, marker, claim_ids) if marker else (False, None)
-            if found and isinstance(parsed, str):
-                note = (f"[Harness note, not from the other agent: your {marker} answer could not be read "
-                        f"({parsed}). Send your message again.]")
+            problem = "your message was empty" if not text.strip() else (
+                f"your {marker} answer could not be read ({parsed})" if found and isinstance(parsed, str) else None)
+            if problem:
+                note = f"[Harness note, not from the other agent: {problem}. Send your message again.]"
                 views[speaker].append({"role": "user", "content": note})
                 continue
             break
         else:
             outcome = "format_failure"
+        if outcome:
             break
         message = {"n": len(transcript) + 1, "agent": speaker, "role": role[speaker], "text": text}
         transcript.append(message)
@@ -227,11 +265,13 @@ def run_dialogue(case, setup, call, budget_left=math.inf):
             pending = {"by": speaker, "answer": parsed, "n": message["n"]} if found else None
             if found:
                 message["proposal"] = True
+                last_proposal = pending
         other = "Y" if speaker == "X" else "X"
         views[other].append({"role": "user", "content": text})
         speaker = other
     return {"case_id": case["id"], "setup": setup, "config": config, "roles": role, "opener": opener,
-            "outcome": outcome, "answer": answer, "transcript": transcript, "calls": calls,
+            "outcome": outcome, "error": error, "answer": answer, "last_open_proposal": last_proposal,
+            "transcript": transcript, "calls": calls,
             "systems": systems, "started_at_utc": started, "finished_at_utc": now(),
             "cost_usd": round(spent, 6)}
 
@@ -248,6 +288,7 @@ def score(case, record):
         p, gold = record["answer"][claim["id"]], claim["gold"]["AB"]
         winners = [k for k in LABELS if p[k] == max(p.values())]
         rows.append({"claim_id": claim["id"], "kind": claim["kind"], "gold_AB": gold,
+                     "gold_A": claim["gold"]["A"], "gold_B": claim["gold"]["B"],
                      "top": winners[0] if len(winners) == 1 else "tie",
                      "brier": round(sum((p[k] - float(k == gold)) ** 2 for k in LABELS), 4),
                      "correct": int(len(winners) == 1 and winners[0] == gold),
@@ -291,6 +332,20 @@ def fake_caller(case):
     return call
 
 
+def scripted(replies, cost=0.0):
+    """Caller that returns the given replies in order (a CallFailed instance is raised)."""
+    replies = list(replies)
+
+    def call(system, messages):
+        assert messages[0]["role"] == "user" and all(
+            m["role"] == ("user" if i % 2 == 0 else "assistant") for i, m in enumerate(messages))
+        reply = replies.pop(0)
+        if isinstance(reply, CallFailed):
+            raise reply
+        return reply, {"input_tokens": 1, "output_tokens": 1, "cost_usd": cost, "model_returned": "fake", "id": None}
+    return call
+
+
 def dry_run():
     case = load_cases()["dishes"]
     for setup in SETUPS:
@@ -298,6 +353,26 @@ def dry_run():
         s = score(case, record)
         assert record["outcome"] in ("final", "agreed"), record["outcome"]
         print(json.dumps({**summary(record), "brier": s["brier"], "accuracy": s["accuracy"]}))
+    good = json.dumps({"claims": [{"id": c["id"], "probabilities": {"supported": 1, "contradicted": 0,
+                                                                     "undetermined": 0}} for c in case["claims"]]})
+    checks = [  # (setup, replies, expected outcome, expected delivered messages)
+        ("peer-A-opens", ["hi", "PROPOSE\n" + good, "**AGREE** glad we converged"], "agreed", 3),
+        ("peer-A-opens", ["PROPOSE\n" + good, "not yet", "AGREE"], "message_cap", 20),
+        ("lead-B", ["FINAL\n{bad", "", "Let me think.\nFINAL\n```json\n" + good + "\n```"], "final", 1),
+        ("lead-B", ["FINAL\n{bad"] * 3, "format_failure", 0),
+        ("lead-A", ["hi", "FINAL\n" + good, "FINAL\n" + good], "final", 3),  # subordinate's FINAL is just text
+        ("peer-B-opens", ["hi", CallFailed("HTTP 500", 0.01)], "error", 1),
+    ]
+    for setup, replies, outcome, n in checks:
+        if outcome == "message_cap":
+            replies = replies + ["more"] * 30
+        record = run_dialogue(case, setup, scripted(replies))
+        assert (record["outcome"], len(record["transcript"])) == (outcome, n), (setup, record["outcome"],
+                                                                               len(record["transcript"]))
+    record = run_dialogue(case, "peer-A-opens", scripted(["x"] * 30, cost=0.3), budget_left=1.0)
+    assert record["outcome"] == "budget_stop" and record["cost_usd"] <= 1.0, record["cost_usd"]
+    assert score(case, run_dialogue(case, "lead-A", scripted(["FINAL\n" + good])))["brier"] >= 0
+    print("edge-case checks passed")
 
 
 # ---------------------------------------------------------------- paid smoke test
@@ -311,6 +386,7 @@ def smoke(model, case_id, cap):
     for setup in SETUPS:
         record = run_dialogue(case, setup, call, budget_left=cap - spent)
         spent += record["cost_usd"]
+        stop = record["outcome"] in ("budget_stop", "error")
         record["score_vs_AB"] = score(case, record)
         record.update({"model": model, "harness_version": HARNESS_VERSION,
                        "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -320,6 +396,9 @@ def smoke(model, case_id, cap):
         s = record["score_vs_AB"] or {}
         rows.append({**summary(record), "brier": s.get("brier"), "accuracy": s.get("accuracy")})
         print(json.dumps(rows[-1]), flush=True)
+        if stop:
+            print(f"stopping: {record['error']}")
+            break
     (out_dir / "summary.json").write_text(json.dumps({"model": model, "case": case_id, "cap_usd": cap,
                                                       "total_cost_usd": round(spent, 4), "rows": rows},
                                                      indent=1) + "\n")
