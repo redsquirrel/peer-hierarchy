@@ -72,11 +72,14 @@ both sides, to be checked with a smoke test first.
 
 ## Open questions for Dave
 
-1. **Real data.** The study has been fiction only. MovieLens viewers are real people, though
-   anonymous, and the data is film taste, not clinical. Is that acceptable?
-2. **Licence.** The GroupLens terms allow research use with citation (Harper & Konstan, 2015)
-   but not redistribution. The public repo would hold a download script and a checksum, not
+1. ~~Real data.~~ **Decided (Dave, 2026-11-07): yes.** Real anonymous MovieLens ratings are
+   acceptable for this task. The fiction-only rule still applies to anything about couples
+   or clinical material.
+2. **Licence.** The ml-1m README allows any research use under four conditions: no implied
+   endorsement by the University of Minnesota or GroupLens, cite Harper & Konstan (2015) in
+   publications, no redistribution without separate permission, and no commercial use
+   without permission. The public repo would hold a download script and a checksum, not
    the data. Published run records would quote some ratings, so whether those records
-   stay public needs a decision, or a request to GroupLens.
+   stay public needs a decision, or a request to grouplens-info@cs.umn.edu.
 3. The bottleneck: word limit or larger halves.
 4. Whether this replaces the couples task or runs alongside it.
