@@ -1,89 +1,129 @@
-# Sketch: a taste-prediction task (2026-11-07)
+# Sketch: a taste-prediction task with tools (2026-11-07)
 
-Status: sketch for discussion. Nothing is built or downloaded yet.
+Status: sketch for discussion. The data is downloaded locally (gitignored); no code is
+written yet.
 
 ## Why change the task
 
 The couples key is short, concise and mostly objective. Agents share both 3-sentence
 accounts in full at once, so nearly every conversation ends in 3 messages, and no
-information gets lost. The new task should feel like judgment, have a real answer that is a
-number, split the information so that both halves matter and neither can be relayed whole,
-and have an answer the model cannot already know.
+information gets lost.
+
+Dave's requirement: no artificial limits on the agents, such as word caps. The task itself
+must make full sharing impossible, so that what gets shared depends on how the two agents
+work together. That is the situation of two real Claude Code sessions: each works in its
+own environment and neither can hand over its whole context.
+
+So in this version the information sits behind tools and is too large to pass across. Each
+agent can look things up in its own database, and all it can share is what it found.
 
 ## The task
 
-Two agents are helping a friend pick films. Each has seen a different part of the friend's
-rating history. Together they predict how the friend rated films that neither has seen
-rated.
+Two agents help a friend, "Sam", by predicting how Sam rated 20 films. Sam's ratings of
+those films are hidden from both agents.
 
-- **Source:** MovieLens 1M (GroupLens). These are anonymous viewers' 1–5 star ratings
-  from 2000–2003 of well-known films. The models know the films but not these viewers.
-- **The friend** is one real anonymous viewer, given a plain first name in the prompt. No
-  user IDs or dataset name are shown, and no demographics are used.
-- **Truth:** the star rating the viewer actually gave.
+- **The history agent (H)** can query Sam's own rating history: 500 or more films with
+  stars, title, year and genres. It cannot see other viewers.
+- **The database agent (D)** can query everyone else's ratings: about a million ratings
+  from about 6,000 viewers, with titles, years and genres. It cannot see Sam's ratings.
+- Each agent has one tool: a read-only SQL query on its own database. The models already
+  know SQL, so the agents work the way they normally would.
 
-## Items
+Neither half is enough alone:
 
-- **Viewers:** those with at least 150 ratings that are not all the same.
-- **The split is by genre.** For example, X sees the viewer's comedy and horror ratings and
-  Y sees their drama and sci-fi ratings. Each agent sees about 40 to 60 films with stars.
-  The split is fixed before any runs, by a stated rule.
-- **Targets:** 10 films per viewer, which neither agent sees rated:
-  - Some fall in X's genres, some in Y's, and some in both, such as a horror-comedy.
-  - A target in only one agent's genres is **decisive** for that agent, so H2b gets a clean
-    definition: when the lead holds comedy, the drama targets depend on the subordinate.
-  - About half the targets are ones where this viewer departs from the crowd by at least 1.5
-    stars. On the rest the viewer agrees with the crowd. A film's reputation alone gets the
-    typical ones right and the surprising ones wrong, so information about the person is
-    what counts.
+- D can find viewers with taste like Sam's, but only if it learns what Sam likes.
+- H knows Sam, but it cannot see how people with similar taste rated the target films.
+- D's million ratings cannot be passed across. H's history could be pasted at a stretch
+  (500 ratings is about 4,000 tokens), but D would then have to type it back into its queries
+  to use it. Whether an agent pastes everything, sends a sample, or sends a summary is part
+  of what we observe, not something we forbid.
+
+## Data
+
+- **Source:** MovieLens 1M (GroupLens): 1,000,209 ratings of 3,706 films by 6,040 anonymous
+  viewers, 2000–2003, 1–5 stars. File sha256
+  a6898adb50b9ca05aa231689da44c217cb524e7ebd39d264c56e2832f2c54e20.
+- **Not used:** demographics (users.dat), timestamps, viewer IDs and the dataset's name.
+  None of these are shown to the agents.
+- **Friends:** 24 viewers drawn at random, with a fixed seed, from the 399 who rated at least
+  500 films. The draw is fixed before any runs.
+- **D's database never contains the friend.** The crowd average used for selecting targets
+  and for the baseline also excludes the friend.
+
+## Targets
+
+Each friend has 20 targets, which are removed from H's history:
+
+- **10 surprising films:** Sam's rating is at least 1.5 stars from the crowd average. About
+  10% of a heavy rater's ratings are like this, so there are plenty to choose from.
+- **10 typical films:** Sam's rating is within 1.5 stars of the crowd.
+- A film's reputation alone gets the typical films right and the surprising ones wrong.
+  On the surprising films the agents need each other: H's knowledge of Sam and D's
+  viewers with similar taste.
+
+## Setups
+
+- **Peer, H opens** and **peer, D opens:** counterbalancing, as before.
+- **H leads** and **D leads:** these are now two different cells, not counterbalancing.
+  They are the BRIEF's "lead holds the critical facts" and "subordinate holds the critical
+  facts" conditions.
+
+Each agent's turn is a tool loop: it may run queries, then writes one message to the other
+agent. The endings (PROPOSE + AGREE, FINAL) and the silent message cap stay as they are.
+Practical tool limits, such as a cap on rows returned per query and a time limit per
+query, are stated in the tool description, the way any real tool states its limits.
 
 ## Answer and scoring
 
-- For each target, the joint answer gives probabilities for 1 to 5 stars. This uses the
-  same format and harness as now.
-- **Primary:** absolute error of the expected rating, measured in stars and easy to read.
-- **Secondary:** ranked probability score, which is like Brier but gives partial credit
-  for being one star off.
+- For each target, the joint answer gives probabilities for 1 to 5 stars.
+- **Primary:** absolute error of the expected rating, in stars.
+- **Secondary:** ranked probability score, which is like Brier but gives partial credit for
+  being one star off.
+- Reported separately for surprising and typical targets.
 
 ## Reference points
 
-- **Crowd only:** the film's average rating across all viewers, with no information about
-  this viewer.
-- **Floor:** one agent with one half.
-- **Ceiling:** one agent with both halves. These are also the "who moved" references.
-- **A standard recommender** (collaborative filtering on the viewer's other ratings): a
-  yardstick that is not a language model.
+- **Crowd only:** each film's average rating, excluding Sam.
+- **Floors:** H alone, and D alone. D alone can do little more than the crowd average.
+- **Ceiling:** one agent with both tools. These answers are also the "who moved" references.
+- **A standard recommender:** neighbour-based collaborative filtering on Sam's full
+  history. It is a strong yardstick that is not a language model. The agents may lose to it.
 
-## The bottleneck
+## What changes in the harness
 
-40 to 60 lines per agent can still be pasted whole, and the models may do just that. Two ways
-to make sharing a choice:
-
-- An equal word limit per message, for example 150 words, for every agent in every setup.
-- Larger halves, for example 150 films each.
-
-To be decided. The word limit is the cleaner test of H2c.
+- A preparation script builds two read-only SQLite files per friend from the local data,
+  checking the file's checksum.
+- A tool loop for both providers (Anthropic tool use, OpenAI function calls). The database
+  is opened read-only, with a row cap and a per-query time limit.
+- A single-agent mode, for the floors and the ceiling.
+- Records are written to ~/Projects/anthropic-fellow/peer-hierarchy-private/, never inside
+  the repo.
+- Scoring (expected-rating error, ranked probability score) and the recommender baseline.
+- A fresh review before any paid run, then a small smoke test.
 
 ## Scale and cost (rough)
 
-24 viewers × 10 targets gives 240 items. 4 setups per viewer gives 96 conversations per model
-pairing. Messages will be longer than in the couples task. Rough guess: $10–25 for Opus on
-both sides, to be checked with a smoke test first.
+24 friends × 4 setups gives 96 conversations per model pairing, plus single-agent
+references. Tool loops mean many more calls per conversation, each with a growing context.
+With prompt caching, a rough guess is $0.50–2 per conversation, so $50–200 for the pilot.
+A smoke test with 4 conversations comes first to measure the real cost.
+
+## Decisions
+
+1. **Real data: yes** (Dave, 2026-11-07). Real anonymous MovieLens ratings are acceptable for
+   this task. The fiction-only rule still applies to anything about couples or clinical
+   material.
+2. **Run records stay private: option A** (Dave, 2026-11-07). Conversation records stay in a
+   private folder outside the public repo. The public repo gets the code, the plan and
+   summary results. If public transcripts are wanted later, ask GroupLens
+   (grouplens-info@cs.umn.edu). The ml-1m README allows any research use with no implied
+   endorsement, citation of Harper & Konstan (2015), no redistribution without permission
+   and no commercial use without permission. The repo holds a download script and the
+   checksum, not the data.
+3. **No word limit** (Dave, 2026-11-07). No artificial caps on the agents. The bottleneck has
+   to come from the task. This replaces the word-limit and larger-halves options.
 
 ## Open questions for Dave
 
-1. ~~Real data.~~ **Decided (Dave, 2026-11-07): yes.** Real anonymous MovieLens ratings are
-   acceptable for this task. The fiction-only rule still applies to anything about couples
-   or clinical material.
-2. ~~Licence and run records.~~ **Decided (Dave, 2026-11-07): option A.** Conversation
-   records for this task stay in a private folder outside the public repo
-   (~/Projects/anthropic-fellow/peer-hierarchy-private/). The public repo gets the code, the
-   plan and summary results. If public transcripts are wanted later, ask GroupLens then.
-   The ml-1m README allows any research use under four conditions: no implied
-   endorsement by the University of Minnesota or GroupLens, cite Harper & Konstan (2015) in
-   publications, no redistribution without separate permission, and no commercial use
-   without permission. The public repo would hold a download script and a checksum, not
-   the data. Published run records would quote some ratings, so whether those records
-   stay public needs a decision, or a request to grouplens-info@cs.umn.edu.
-3. The bottleneck: word limit or larger halves.
-4. Whether this replaces the couples task or runs alongside it.
+1. Whether this replaces the couples task or runs alongside it.
+2. Pilot scale and the cost cap, after the smoke test.
