@@ -1,6 +1,6 @@
 # Sketch: a taste-prediction task with tools (2026-11-07)
 
-Status: sketch for discussion. The data is downloaded locally (gitignored); no code is
+Status: agreed design (2026-11-07), not yet built. The data is downloaded locally (gitignored); no code is
 written yet.
 
 ## Why change the task
@@ -122,8 +122,9 @@ A smoke test with 4 conversations comes first to measure the real cost.
    checksum, not the data.
 3. **No word limit** (Dave, 2026-11-07). No artificial caps on the agents. The bottleneck has
    to come from the task. This replaces the word-limit and larger-halves options.
+4. **This replaces the couples task** (Dave, 2026-11-07). The couples smoke tests stay in the
+   repo as the record of why.
 
 ## Open questions for Dave
 
-1. Whether this replaces the couples task or runs alongside it.
-2. Pilot scale and the cost cap, after the smoke test.
+1. Pilot scale and the cost cap, after the smoke test.

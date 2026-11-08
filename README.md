@@ -10,16 +10,29 @@ more but collective intelligence is highest.
 - [BRIEF.md](BRIEF.md): question, hypotheses (H1, H2a–c), configurations, decisions.
 - [notes/](notes/): working notes and findings.
 
-## Materials
+- [plans/](plans/): the task design and the draft analysis plan.
 
-The task reuses the fictional couples scenarios and answer key from
+## Task
+
+Two agents predict how a viewer rated 20 films. One agent can query the viewer's own rating
+history, and the other can query a million ratings from other viewers. Neither can hand
+its database to the other, so what they share depends on how they work together. See
+[plans/taste-task.md](plans/taste-task.md).
+
+The ratings come from the MovieLens 1M dataset (F. Maxwell Harper and Joseph A. Konstan,
+2015, "The MovieLens Datasets: History and Context", ACM TiiS 5(4), doi:10.1145/2827872).
+The data is not redistributed here. This project is not endorsed by the University of
+Minnesota or GroupLens. Conversation records for this task are kept private, because they
+quote ratings.
+
+## Earlier task
+
+Three smoke tests used the fictional couples scenarios and answer key from
 [epistemic-empathy](https://github.com/redsquirrel/epistemic-empathy)
-(`data/pilot.jsonl`, commit 811fd44, dataset sha 12fef036…). Each agent holds one partner's
-account, both see the shared facts, and the pair gives one joint judgment per claim,
-scored against the key for both accounts. The key is provisional.
-
-All scenario content is fiction.
+(`data/pilot.jsonl`, commit 811fd44). The accounts were so short that the agents always
+shared everything at once, so that task was replaced. Those runs stay in [runs/](runs/).
+All couples content is fiction.
 
 ## Status
 
-Design. No model calls have been made for this study yet.
+Design of the film-taste task agreed. The harness is not built yet.

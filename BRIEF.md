@@ -1,6 +1,6 @@
 # Peer vs. hierarchy: how two agent sessions communicate
 
-Started 2026-11-06 by Dave Hoover. Status: hypotheses stated; pilot design in progress.
+Started 2026-11-06 by Dave Hoover. Status: hypotheses stated; task changed 2026-11-07 (see the end).
 The analysis plan will be fixed before any pilot data is seen.
 
 ## The question (Dave)
@@ -149,3 +149,23 @@ decision.
   "X reports feeling Y" relays, and 4 of the other 5 were disputed in run 1
   (notes/decisive-claims.md). Purpose-built claims (option B) are the next step if peers and
   hierarchies differ at all.
+
+## Decisions (2026-11-07): a new task
+
+- **The couples task is replaced** by a tool-based film-taste task (plans/taste-task.md).
+  Three smoke tests showed the problem: the accounts are 3 sentences, agents share both in
+  full at once, nearly every conversation ends in 3 messages, and no information gets lost.
+  Peers and hierarchies cannot differ when both always end with everything.
+- **No artificial limits** (Dave): no word caps or message caps stated to the agents. The task
+  itself has to make full sharing impossible, as it is for two real Claude Code sessions,
+  each working in its own environment.
+- **The new task:** two agents predict how a real, anonymous MovieLens viewer rated 20 films.
+  One can query the viewer's own rating history; the other can query a million ratings
+  from other viewers. Neither half is enough alone, and the database cannot be passed
+  across. "History agent leads" and "database agent leads" are the "lead holds the critical
+  facts" and "subordinate holds the critical facts" conditions above.
+- **Real data** (Dave): real anonymous ratings are acceptable for this task. Fiction-only still
+  applies to couples or clinical material. Conversation records stay private, because the
+  MovieLens licence does not allow redistribution.
+- H1 and H2a carry over unchanged in meaning. H2a is now scored as error against the
+  viewer's actual ratings. The "who moved" measure is in plans/analysis-plan.md.
