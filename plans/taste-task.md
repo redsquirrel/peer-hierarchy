@@ -151,6 +151,5 @@ $0.31, so about $30 per 96 conversations.
    to come from the task. This replaces the word-limit and larger-halves options.
 4. **This replaces the couples task** (Dave, 2026-11-07). The couples smoke tests stay in the
    repo as the record of why.
-
 5. **Pilot scale** (Dave, 2026-11-08): Opus 5.5 on both sides, 96 conversations and 72
    single-agent runs, $60 cap. Details in plans/analysis-plan.md. Sol comes in the next stage.
