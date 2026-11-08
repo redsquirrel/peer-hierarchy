@@ -175,3 +175,27 @@ friend (72 runs, about $7). Decision rule, fixed before the check:
 Known limit (from the review): genres and popularity can sometimes point to a famous film (38 of
 480 targets have a genre combination no other film shares). Transcripts will be checked for
 agents naming films.
+
+### Result of the blind check (2026-11-08, $5.66, all 72 runs ended with an answer)
+
+Mean error in stars over 24 friends:
+
+| Condition | All | Surprising | Typical |
+|---|---|---|---|
+| Crowd average | 1.23 | 1.88 | 0.58 |
+| Recommender | 1.09 | 1.64 | 0.55 |
+| History only, blind | 1.11 | 1.53 | 0.69 |
+| Database only, blind | 1.23 | 1.87 | 0.59 |
+| Both tools, blind | 1.11 | 1.68 | 0.55 |
+
+**The decision rule is not met.** Both tools beat the database agent alone by 0.11 stars (95% CI
+0.07–0.16), but not the history agent alone (+0.005, CI −0.03 to +0.04).
+
+- Hiding titles did hurt the history agent (1.02 titled, 1.11 blind), so the model's film
+  knowledge was doing much of the work in the pilot.
+- With both tools, the agent mostly used the crowd average: it ran a median of 4 queries and
+  searched for similar viewers in only 4 of 24 runs.
+- The ceiling is low on this data. Even the recommender, which uses all of the other viewers'
+  ratings, is only 0.02 stars better than the history agent alone. Single ratings are noisy, so
+  combining both halves can gain little, and a peer/hierarchy difference would be too small to
+  detect with 24 friends.
