@@ -9,6 +9,12 @@
                                                         # (MH plays the history agent, MD the database agent)
     python3 -I harness/taste.py solo LABEL CAP_USD FRIENDS TOOLS MODEL [REPS]
                                                         # paid: one agent alone; TOOLS = history|database|both
+    python3 -I harness/taste.py prepare-blind           # build the blind variant's databases (free)
+    python3 -I harness/taste.py --blind COMMAND ...     # any command above, on the blind variant
+
+Blind variant (2026-11-08): the same friends and targets, but film titles and years are hidden.
+Each film has only a code number (the same in every database) and its genres, so the model's own
+knowledge of films cannot stand in for the other viewers' ratings.
 
 FRIENDS is a comma list of friend keys (f01..f24) or "all".
 
@@ -54,7 +60,11 @@ ITEMS = OUT / "items.json"
 OTHERS_DB = OUT / "others.sqlite"
 PRIVATE = ROOT.parent / "peer-hierarchy-private"
 KEYS_FILE = Path.home() / ".config/epistemic-empathy/api-keys.env"
-HARNESS_VERSION = "taste-2"
+HARNESS_VERSION = "taste-3"
+BLIND_OUT = DATA / "taste-blind"
+BLIND_CODES = BLIND_OUT / "codes.json"     # MovieLens film id -> code number shown to the agents
+VARIANT = "titled"                         # or "blind", set by --blind
+CODES = {}
 
 # Item selection, fixed before any runs (plans/taste-task.md).
 SEED = 20261107
@@ -126,6 +136,16 @@ SUBORDINATE = """The other agent is the lead. The lead runs the discussion: it d
 
 FORMAT = """Answer JSON: {"films": [{"film": 1, "probabilities": {"1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0}}]}, with one entry for each numbered film. Each probability must be between 0 and 1, and the five must add up to 1."""
 
+BLIND_DATA_TEXT = {
+    "H": "You have a query tool for a database of Sam's own ratings of {n_history} other films: the code "
+         "number and genres of each film and the stars Sam gave it.",
+    "D": "You have a query tool for a database of {n_ratings:,} ratings of {n_films:,} films by {n_viewers:,} "
+         "other film fans, with each film's code number and genres. Sam is not among them.",
+}
+BLIND_NOTE = ("Film titles and years are hidden. Each film has a code number, which is the same in every "
+              "database, and its genres. In the answer JSON, \"film\" is the film's number in this list "
+              "(1 to {n}), not its code.")
+
 OPEN = "Please begin the discussion."
 OPEN_SOLO = "Please begin."
 
@@ -141,6 +161,19 @@ TOOLS = {
                          "ratings(viewer INTEGER, film_id INTEGER, stars INTEGER). genres lists the film's "
                          "genres separated by '|', for example 'Comedy|Romance'. stars is 1 to 5. Sam is not "
                          "in this database. " + LIMITS},
+}
+BLIND_TOOLS = {
+    "H": {"name": "query_sam_ratings",
+          "description": "Run one read-only SQLite query on the database of Sam's ratings. Table: "
+                         "ratings(film_id INTEGER, genres TEXT, stars INTEGER). film_id is the film's code "
+                         "number. genres lists the film's genres separated by '|', for example "
+                         "'Comedy|Romance'. stars is 1 to 5. " + LIMITS},
+    "D": {"name": "query_other_ratings",
+          "description": "Run one read-only SQLite query on the database of other film fans' ratings. Tables: "
+                         "films(film_id INTEGER PRIMARY KEY, genres TEXT) and "
+                         "ratings(viewer INTEGER, film_id INTEGER, stars INTEGER). film_id is the film's code "
+                         "number. genres lists the film's genres separated by '|', for example "
+                         "'Comedy|Romance'. stars is 1 to 5. Sam is not in this database. " + LIMITS},
 }
 TOOL_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["sql"],
                "properties": {"sql": {"type": "string", "description": "One SQLite SELECT statement."}}}
@@ -278,6 +311,57 @@ def prepare():
                       "items_sha256": hashlib.sha256(ITEMS.read_bytes()).hexdigest()}))
 
 
+def prepare_blind():
+    """The blind variant: same friends, targets and histories as `prepare`, titles and years removed,
+    film ids replaced by seeded random code numbers (so known MovieLens ids reveal nothing)."""
+    films, by_user = read_movielens()
+    items = load_items()
+    ids = sorted(films)
+    codes = dict(zip(ids, random.Random(f"{SEED}-blind-codes").sample(range(3000, 10000), len(ids))))
+    BLIND_OUT.mkdir(parents=True, exist_ok=True)
+    BLIND_CODES.write_text(json.dumps({str(k): v for k, v in codes.items()}) + "\n")
+    for friend in items["friends"]:
+        rated = by_user[friend["movielens_user"]]
+        target_ids = {t["film_id"] for t in friend["targets"]}
+        history = sorted((f for f in rated if f not in target_ids), key=lambda f: codes[f])
+        assert len(history) == friend["n_history"]
+        db = BLIND_OUT / "history" / f"{friend['key']}.sqlite"
+        db.parent.mkdir(parents=True, exist_ok=True)
+        db.unlink(missing_ok=True)
+        con = sqlite3.connect(db)
+        con.execute("CREATE TABLE ratings (film_id INTEGER, genres TEXT, stars INTEGER)")
+        con.executemany("INSERT INTO ratings VALUES (?, ?, ?)",
+                        [(codes[f], films[f]["genres"], rated[f]) for f in history])
+        con.commit()
+        con.close()
+    src = sqlite3.connect(f"file:{OTHERS_DB}?mode=ro", uri=True)
+    rows = src.execute("SELECT viewer, film_id, stars FROM ratings").fetchall()
+    src.close()
+    db = BLIND_OUT / "others.sqlite"
+    db.unlink(missing_ok=True)
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE films (film_id INTEGER PRIMARY KEY, genres TEXT)")
+    con.execute("CREATE TABLE ratings (viewer INTEGER, film_id INTEGER, stars INTEGER)")
+    con.executemany("INSERT INTO films VALUES (?, ?)", sorted((codes[f], v["genres"]) for f, v in films.items()))
+    con.executemany("INSERT INTO ratings VALUES (?, ?, ?)", sorted((v, codes[f], st) for v, f, st in rows))
+    con.execute("CREATE INDEX ratings_film ON ratings (film_id)")
+    con.execute("CREATE INDEX ratings_viewer ON ratings (viewer)")
+    con.commit()
+    n = con.execute("SELECT COUNT(*), COUNT(DISTINCT viewer), COUNT(DISTINCT film_id) FROM ratings").fetchone()
+    con.close()
+    assert n == (items["others"]["n_ratings"], items["others"]["n_viewers"], items["others"]["n_films"]), n
+    print(json.dumps({"films": len(codes), "ratings": n[0], "viewers": n[1], "rated_films": n[2],
+                      "codes_sha256": hashlib.sha256(BLIND_CODES.read_bytes()).hexdigest()}))
+
+
+def use_blind():
+    global VARIANT, TOOLS, DATA_TEXT, CODES
+    if not BLIND_CODES.exists():
+        sys.exit("Run `prepare-blind` first")
+    VARIANT, TOOLS, DATA_TEXT = "blind", BLIND_TOOLS, BLIND_DATA_TEXT
+    CODES = {int(k): v for k, v in json.loads(BLIND_CODES.read_text()).items()}
+
+
 def load_items():
     if not ITEMS.exists():
         sys.exit("Run `prepare` first")
@@ -348,12 +432,17 @@ def run_query(db_path, sql):
 
 
 def tool_paths(friend):
-    return {"H": OUT / "history" / f"{friend['key']}.sqlite", "D": OTHERS_DB}
+    base = BLIND_OUT if VARIANT == "blind" else OUT
+    return {"H": base / "history" / f"{friend['key']}.sqlite", "D": base / "others.sqlite"}
 
 
 # ---------------------------------------------------------------- prompts per agent
 
 def target_list(friend):
+    if VARIANT == "blind":
+        return BLIND_NOTE.format(n=len(friend["targets"])) + "\n" + "\n".join(
+            f"{n}. code {CODES[t['film_id']]} - {t['genres'].replace('|', ', ')}"
+                                             for n, t in enumerate(friend["targets"], 1))
     return "\n".join(f"{n}. {t['title']} ({t['year']}) - {t['genres'].replace('|', ', ')}"
                      for n, t in enumerate(friend["targets"], 1))
 
@@ -922,7 +1011,7 @@ def dry_run():
                                          "SELECT MAX(x) FROM c")
     assert err and "longer than" in text, text
     # The database agent cannot reach Sam's ratings: no friend's ratings are in the others database.
-    con = sqlite3.connect(f"file:{OTHERS_DB}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{paths['D']}?mode=ro", uri=True)
     n_others = con.execute("SELECT COUNT(DISTINCT viewer) FROM ratings").fetchone()[0]
     con.close()
     assert n_others == items["others"]["n_viewers"]
@@ -930,9 +1019,19 @@ def dry_run():
     assert n_others == len(by_user) - N_FRIENDS
     # No target appears in its friend's history.
     con = sqlite3.connect(f"file:{paths['H']}?mode=ro", uri=True)
-    hist = set(con.execute("SELECT title, year FROM ratings").fetchall())
+    if VARIANT == "blind":
+        hist = {r[0] for r in con.execute("SELECT film_id FROM ratings")}
+        assert not hist & {CODES[t["film_id"]] for t in friend["targets"]}
+        cols = {r[1] for r in con.execute("SELECT * FROM pragma_table_info('ratings')")}
+        con.close()
+        con = sqlite3.connect(f"file:{paths['D']}?mode=ro", uri=True)
+        cols |= {r[1] for r in con.execute("SELECT * FROM pragma_table_info('films')")}
+        assert not cols & {"title", "year"}, cols
+        assert "title" not in system_prompt(items, friend, "H", "peer").lower().replace("titles and years are hidden", "")
+    else:
+        hist = set(con.execute("SELECT title, year FROM ratings").fetchall())
+        assert not hist & {(t["title"], t["year"]) for t in friend["targets"]}
     con.close()
-    assert not hist & {(t["title"], t["year"]) for t in friend["targets"]}
     print("query tool checks passed")
 
     for setup in SETUPS:
@@ -1016,7 +1115,8 @@ def dry_run():
 # ---------------------------------------------------------------- paid runs
 
 def provenance():
-    return {"harness_version": HARNESS_VERSION,
+    return {"harness_version": HARNESS_VERSION, "variant": VARIANT,
+            **({"codes_sha256": hashlib.sha256(BLIND_CODES.read_bytes()).hexdigest()} if VARIANT == "blind" else {}),
             "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "source_sha256": ZIP_SHA256, "items_sha256": hashlib.sha256(ITEMS.read_bytes()).hexdigest(),
             "max_messages": MAX_MESSAGES, "max_tool_calls_per_turn": MAX_TOOL_CALLS_PER_TURN,
@@ -1089,8 +1189,13 @@ def solo(label, cap, friends_spec, tools, model, reps):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--blind":
+        sys.argv.pop(1)
+        use_blind()
     command = sys.argv[1] if len(sys.argv) > 1 else ""
-    if command == "prepare":
+    if command == "prepare-blind":
+        prepare_blind()
+    elif command == "prepare":
         prepare()
     elif command == "baselines":
         baselines()

@@ -172,4 +172,7 @@ ceiling. The 3 or more repetitions per model that "who moved" needs come with th
 
 ## Changes after freezing
 
-None yet.
+- 2026-11-08, after the pilot: the pilot ran under this plan unchanged. A blind variant of the task
+  (titles and years hidden) is being checked; see plans/taste-task.md. If it goes ahead, its
+  pilot uses this plan as written, with the blind variant in place of the titled one. H2c's
+  count of Sam's films named would then count code numbers instead of titles.

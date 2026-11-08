@@ -153,3 +153,25 @@ $0.31, so about $30 per 96 conversations.
    repo as the record of why.
 5. **Pilot scale** (Dave, 2026-11-08): Opus 5.5 on both sides, 96 conversations and 72
    single-agent runs, $60 cap. Details in plans/analysis-plan.md. Sol comes in the next stage.
+
+## Blind variant (2026-11-08, after the pilot)
+
+The pilot (runs/pilot-2026-11-08/) found no headroom: the history agent alone did as well as one
+agent with both tools, and the database agent alone did no better than the crowd. The model's own
+knowledge of the films stood in for the other viewers' ratings.
+
+**Change (Dave, 2026-11-08):** hide titles and years. Each film appears only as a code number,
+the same in both databases and the target list, plus its genres. The codes are a seeded random
+renumbering (3000–9999, so no code looks like a year), so known MovieLens ids reveal nothing. Friends, targets, histories and the other
+viewers' ratings are unchanged. Built by `taste.py prepare-blind`; run with `taste.py --blind`.
+
+**Check first, single agents only:** history only, database only and both tools, once per
+friend (72 runs, about $7). Decision rule, fixed before the check:
+
+- Go on to a blind peer/hierarchy pilot only if one agent with both tools beats each
+  single-tool agent by at least 0.10 stars of mean error.
+- Otherwise the agents still do not need each other, and the task needs another change.
+
+Known limit (from the review): genres and popularity can sometimes point to a famous film (38 of
+480 targets have a genre combination no other film shares). Transcripts will be checked for
+agents naming films.
