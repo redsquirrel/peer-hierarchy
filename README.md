@@ -34,5 +34,5 @@ All couples content is fiction.
 
 ## Status
 
-Harness built and smoke-tested. The analysis plan is frozen (plans/analysis-plan.md). Next:
-the pilot, Claude Opus 5.5 on both sides, 96 conversations.
+Pilot done 2026-11-08 (runs/pilot-2026-11-08/): neither H1 nor H2a supported. The history agent
+alone does as well as any pair, so the task does not yet make the agents need each other.
