@@ -89,6 +89,8 @@ intelligence is maximized.
 
 Proposed measures (to be fixed before any pilot data is seen):
 - H1: messages exchanged, total tokens (input + output), turns until the final answer.
+  *Superseded 2026-11-07:* words exchanged is the primary H1 measure, because every
+  conversation took 3 messages (plans/analysis-plan.md).
 - H2: agreement of the joint claim judgments with the AB key (Brier and accuracy),
   reported separately on undisputed items and on the items flagged as disputed in
   run 1. The key is provisional.

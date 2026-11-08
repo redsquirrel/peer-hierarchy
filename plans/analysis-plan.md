@@ -12,9 +12,39 @@ task on 2026-11-07. Hypotheses are stated in BRIEF.md. In summary:
   difference between "history agent leads" and "database agent leads"), H2c (information
   flow) and "who moved" (below).
 
-Still to write before freezing: the exact H1 and H2a tests, the unit of analysis, how
-repetitions are pooled, how failed conversations (message cap, format failure) are
-handled, and pilot scale.
+Still to write before freezing: the H2a test, how repetitions are pooled, how failed
+conversations (message cap, format failure, tool cap) are handled, and pilot scale.
+
+## Confirmatory: H1 (peers need more communication)
+
+Decided with Dave on 2026-11-07, after smoke test 4. In that test every conversation took 3
+messages, whatever the setup, but the messages ran from 846 to 1,720 words per conversation.
+So the message count cannot carry H1, and the amount said can.
+
+**Primary measure: words exchanged.** This is the total number of words in all messages
+delivered between the two agents in a conversation. The answer JSON after a PROPOSE or FINAL
+line is removed before counting, so peers are not credited for repeating their proposals as
+JSON. Rejected format attempts and harness notes are not counted.
+
+**Secondary measures:**
+
+- Total output tokens across both agents (thinking included), as the provider reports them.
+- Total input tokens across both agents, counting cached and uncached together.
+- Number of queries.
+
+**Descriptive only:** messages delivered and model calls.
+
+**Unit and test.** Each friend runs all four setups, so the comparison is paired within
+friend:
+
+- For each friend, take the mean of log(words) over the two peer setups minus the mean over
+  the two hierarchy setups.
+- Test that this difference is above zero across friends with a one-sided Wilcoxon
+  signed-rank test, α = 0.05.
+- Report the median peer/hierarchy ratio with a bootstrap 95% interval over friends.
+
+The secondary measures are reported the same way, without a significance claim. Only
+conversations that end with an answer are counted; failure counts are reported by setup.
 
 ## Exploratory: who moved
 
