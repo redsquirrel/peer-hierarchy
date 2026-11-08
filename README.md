@@ -9,7 +9,6 @@ more but collective intelligence is highest.
 
 - [BRIEF.md](BRIEF.md): question, hypotheses (H1, H2a–c), configurations, decisions.
 - [notes/](notes/): working notes and findings.
-
 - [plans/](plans/): the task design and the draft analysis plan.
 
 ## Task
