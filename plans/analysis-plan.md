@@ -12,8 +12,7 @@ task on 2026-11-07. Hypotheses are stated in BRIEF.md. In summary:
   difference between "history agent leads" and "database agent leads"), H2c (information
   flow) and "who moved" (below).
 
-Still to write before freezing: the H2a test, how repetitions are pooled, how failed
-conversations (message cap, format failure, tool cap) are handled, and pilot scale.
+Still to write before freezing: how repetitions are pooled, and pilot scale.
 
 ## Confirmatory: H1 (peers need more communication)
 
@@ -45,6 +44,59 @@ friend:
 
 The secondary measures are reported the same way, without a significance claim. Only
 conversations that end with an answer are counted; failure counts are reported by setup.
+
+## Confirmatory: H2a (peers predict better)
+
+Decided with Dave on 2026-11-07.
+
+**Primary measure: error in stars.** For each conversation, this is the mean over the 20
+target films of |expected rating − Sam's actual rating|. The expected rating is the
+probability-weighted mean of 1–5 stars in the joint answer.
+
+**Secondary measure:** the ranked probability score over 1–5 stars (normalized to 0..1), which
+gives partial credit for being one star off.
+
+**Unit and test.** As for H1, the comparison is paired within friend:
+
+- For each friend, take the mean error over the two peer setups minus the mean over the two
+  hierarchy setups.
+- Test that this difference is below zero (peers more accurate) with a one-sided Wilcoxon
+  signed-rank test, α = 0.05.
+- Report the mean difference in stars with a bootstrap 95% interval over friends.
+
+**Reference points,** reported alongside without tests: the crowd average, the recommender,
+each agent alone, and one agent with both tools.
+
+## Failed conversations
+
+A conversation fails when it ends without an answer: message cap, format failure, tool cap,
+error or budget stop.
+
+- Failures are counted and reported by setup and by kind.
+- **Main analysis:** failed conversations are left out. A friend whose two peer or two
+  hierarchy conversations both failed drops out of that test; when only one of a pair failed,
+  the other stands in for that side.
+- **Check:** the H2a test is repeated with each failed conversation scored as the crowd
+  average (each film's distribution among other viewers), so a setup cannot look better by
+  failing on hard cases.
+- An infrastructure failure (an HTTP error or outage, not the agents' behaviour) may be rerun
+  once, before any results are looked at. Reruns are listed.
+
+## Exploratory: H2b (where the peer advantage shows)
+
+- Error and ranked probability score split by surprising and typical films. If peers gain,
+  the gain should sit on surprising films, where both halves of the information matter.
+- "History agent leads" against "database agent leads". In the BRIEF's terms, these are the
+  lead holding the critical facts and the subordinate holding them.
+- Who opened, in peer conversations.
+
+## Exploratory: H2c (information flow)
+
+- How many of Sam's ratings the history agent states in messages, as a count and as a share of
+  Sam's history.
+- Whether the database agent searched for viewers with similar taste: a query that
+  combines Sam's ratings with other viewers' ratings, as seen in smoke test 4.
+- Whether these track the error difference in H2a.
 
 ## Exploratory: who moved
 
