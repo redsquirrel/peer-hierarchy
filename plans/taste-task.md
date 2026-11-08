@@ -1,6 +1,6 @@
 # Sketch: a taste-prediction task with tools (2026-11-07)
 
-Status: agreed design (2026-11-07), not yet built. The data is downloaded locally (gitignored); no code is
+Status: agreed design (2026-11-07). Harness built (harness/taste.py); review pending. The data is downloaded locally (gitignored); no code is
 written yet.
 
 ## Why change the task
@@ -45,8 +45,10 @@ Neither half is enough alone:
   a6898adb50b9ca05aa231689da44c217cb524e7ebd39d264c56e2832f2c54e20.
 - **Not used:** demographics (users.dat), timestamps, viewer IDs and the dataset's name.
   None of these are shown to the agents.
-- **Friends:** 24 viewers drawn at random, with a fixed seed, from the 399 who rated at least
-  500 films. The draw is fixed before any runs.
+- **Friends:** 24 viewers drawn in a seeded random order from the 399 who rated at least 500
+  films. A viewer is skipped if it would leave any chosen friend with fewer than 10 surprising
+  or 10 typical candidate films (the first plain draw hit one with only 7). The draw is fixed
+  before any runs, in `harness/taste.py prepare`.
 - **D's database never contains the friend.** The crowd average used for selecting targets
   and for the baseline also excludes the friend.
 
@@ -88,6 +90,17 @@ query, are stated in the tool description, the way any real tool states its limi
 - **Ceiling:** one agent with both tools. These answers are also the "who moved" references.
 - **A standard recommender:** neighbour-based collaborative filtering on Sam's full
   history. It is a strong yardstick that is not a language model. The agents may lose to it.
+
+Computed 2026-11-07 (`harness/taste.py baselines`), mean error in stars over 480 targets:
+
+| | All | Surprising | Typical |
+|---|---|---|---|
+| Crowd average | 1.23 | 1.88 | 0.58 |
+| Recommender | 1.08 | 1.63 | 0.54 |
+
+The surprising films are hard even for the recommender. Part of what makes them surprising is
+likely one-off noise in Sam's rating that nothing can predict, so the achievable gain there
+is limited.
 
 ## What changes in the harness
 
