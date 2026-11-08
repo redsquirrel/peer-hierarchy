@@ -1,6 +1,6 @@
 # Sketch: a taste-prediction task with tools (2026-11-07)
 
-Status: agreed design (2026-11-07). Harness built (harness/taste.py); review pending. The data is downloaded locally (gitignored); no code is
+Status: agreed design (2026-11-07). Harness built (harness/taste.py) and reviewed; ready for a smoke test. The data is downloaded locally (gitignored); no code is
 written yet.
 
 ## Why change the task
@@ -74,6 +74,20 @@ Each agent's turn is a tool loop: it may run queries, then writes one message to
 agent. The endings (PROPOSE + AGREE, FINAL) and the silent message cap stay as they are.
 Practical tool limits, such as a cap on rows returned per query and a time limit per
 query, are stated in the tool description, the way any real tool states its limits.
+
+Harness rules after the code review (2026-11-07):
+
+- A peer proposal stays open until a new proposal replaces it, so an AGREE several messages
+  later still counts. Before, it had to come straight after the proposal, which would have
+  pushed peers into needlessly long conversations.
+- After 40 queries in one turn (150 for a single agent), further queries get an error asking
+  the agent to write its message. Only an agent that keeps querying after that loses the
+  conversation.
+- Probabilities that sum to within 0.01 of 1 are accepted and rescaled; a larger miss is
+  sent back naming the film.
+- Within each friend, the four setups run in a seeded random order, and friends run one at a
+  time, so an early stop never empties a setup.
+- Output is capped at 32,000 tokens per call for both providers. Effort is the provider default.
 
 ## Answer and scoring
 

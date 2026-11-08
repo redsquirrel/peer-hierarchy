@@ -39,6 +39,7 @@ import statistics
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -53,7 +54,7 @@ ITEMS = OUT / "items.json"
 OTHERS_DB = OUT / "others.sqlite"
 PRIVATE = ROOT.parent / "peer-hierarchy-private"
 KEYS_FILE = Path.home() / ".config/epistemic-empathy/api-keys.env"
-HARNESS_VERSION = "taste-1"
+HARNESS_VERSION = "taste-2"
 
 # Item selection, fixed before any runs (plans/taste-task.md).
 SEED = 20261107
@@ -69,8 +70,10 @@ SETUPS = ("peer-H-opens", "peer-D-opens", "lead-H", "lead-D")
 FRIEND_NAME = "Sam"
 MAX_MESSAGES = 20               # silent safety limit on delivered messages, both sides together (not told)
 MAX_FORMAT_RETRIES = 2          # per agent turn, when a PROPOSE/FINAL answer cannot be read
-MAX_TOOL_CALLS_PER_TURN = 40    # silent safety limit on queries within one turn
-MAX_TOKENS = 16000
+MAX_TOOL_CALLS_PER_TURN = 40    # queries per dialogue turn before the agent is told to write its message
+MAX_TOOL_CALLS_SOLO = 150       # the same for a single agent, whose whole task is one turn
+MAX_TOKENS = 32000              # output cap (thinking included), the same for both providers
+SUM_TOLERANCE = 0.01            # probabilities summing within this of 1 are accepted and renormalized
 NEXT_CALL_RESERVE_USD = 1.00    # stop before a call unless this much budget is left, so the cap holds
 ROW_CAP = 200                   # stated to the agents in the tool description
 QUERY_SECONDS = 30              # stated to the agents in the tool description
@@ -81,8 +84,10 @@ PRICES = {
                         "output": 20.00},
     "gpt-6.1-sol": {"provider": "openai", "input": 2.00, "cached": 0.10, "output": 10.00},
 }
-SETTINGS_SENT = {"anthropic": {"max_tokens": MAX_TOKENS, "cache_control": {"type": "ephemeral"}},
-                 "openai": {"store": False, "include": ["reasoning.encrypted_content"]}}
+SETTINGS_SENT = {"anthropic": {"max_tokens": MAX_TOKENS, "cache_control": {"type": "ephemeral"},
+                               "effort": "provider default (medium for claude-opus-5-5)"},
+                 "openai": {"max_output_tokens": MAX_TOKENS, "store": False,
+                            "include": ["reasoning.encrypted_content"], "reasoning_effort": "provider default"}}
 
 # ---------------------------------------------------------------- prompts
 
@@ -295,9 +300,13 @@ def select_friends(items, spec):
 
 # ---------------------------------------------------------------- the query tool
 
-def _authorizer(action, *_):
-    allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION,
-               getattr(sqlite3, "SQLITE_RECURSIVE", 33)}
+BLOCKED_FUNCTIONS = {"zeroblob", "randomblob", "load_extension", "readfile", "writefile", "edit"}
+
+
+def _authorizer(action, arg1, arg2, *_):
+    if action == sqlite3.SQLITE_FUNCTION:
+        return sqlite3.SQLITE_DENY if (arg2 or "").lower() in BLOCKED_FUNCTIONS else sqlite3.SQLITE_OK
+    allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, getattr(sqlite3, "SQLITE_RECURSIVE", 33)}
     return sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY
 
 
@@ -307,7 +316,7 @@ def run_query(db_path, sql):
     info = {"rows": 0, "truncated": False}
     if not isinstance(sql, str) or not sql.strip():
         return "Error: the query is empty.", True, info
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{urllib.parse.quote(str(db_path))}?mode=ro", uri=True)
     try:
         con.set_authorizer(_authorizer)   # only reads: no ATTACH, PRAGMA, writes or temp tables
         con.set_progress_handler(lambda: int(time.monotonic() - started > QUERY_SECONDS), 10000)
@@ -379,15 +388,19 @@ def solo_prompt(items, friend, agents):
 
 # ---------------------------------------------------------------- parsing
 
-def probabilities(value):
+def probabilities(value, film=None):
+    """Validate one film's probabilities. Sums within SUM_TOLERANCE of 1 are renormalized
+    (the raw text stays in the transcript)."""
+    where = f"film {film}: " if film is not None else ""
     if not isinstance(value, dict) or set(value) != set(STARS):
-        raise ValueError('each film needs probabilities for exactly "1" to "5"')
+        raise ValueError(where + 'needs probabilities for exactly "1" to "5"')
     numbers = [value[s] for s in STARS]
     if any(type(p) not in (int, float) or not math.isfinite(p) or not 0 <= p <= 1 for p in numbers):
-        raise ValueError("probabilities must be numbers in [0,1]")
-    if not math.isclose(sum(numbers), 1, abs_tol=1e-6, rel_tol=0):
-        raise ValueError("probabilities must sum to 1")
-    return {s: float(value[s]) for s in STARS}
+        raise ValueError(where + "probabilities must be numbers in [0,1]")
+    total = sum(numbers)
+    if not math.isclose(total, 1, abs_tol=SUM_TOLERANCE, rel_tol=0):
+        raise ValueError(where + f"probabilities sum to {total:g}, not 1")
+    return {s: float(value[s]) / total for s in STARS}
 
 
 def find_answer(text, marker, n_films):
@@ -407,7 +420,7 @@ def find_answer(text, marker, n_films):
         numbers = [e["film"] for e in entries]
         if any(type(n) is not int for n in numbers) or sorted(numbers) != list(range(1, n_films + 1)):
             raise ValueError(f"films must cover each film number 1-{n_films} exactly once")
-        return True, {e["film"]: probabilities(e["probabilities"]) for e in entries}
+        return True, {e["film"]: probabilities(e["probabilities"], e["film"]) for e in entries}
     except (ValueError, TypeError, KeyError, AttributeError) as exc:
         return True, f"error: {exc}"[:200]
 
@@ -480,7 +493,7 @@ class Anthropic:
                 + (usage.get("cache_creation_input_tokens") or 0) * p["cache_write"]
                 + (usage.get("cache_read_input_tokens") or 0) * p["cached"]
                 + (usage.get("output_tokens") or 0) * p["output"]) / 1e6
-        if data.get("stop_reason") in ("refusal", "max_tokens"):
+        if data.get("stop_reason") in ("refusal", "max_tokens", "model_context_window_exceeded"):
             raise CallFailed(f"stop_reason {data['stop_reason']}", cost)
         content = data.get("content") or []
         text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
@@ -509,6 +522,7 @@ class OpenAI:
 
     def request(self, system, history, tools):
         body = {"model": self.model, "store": False, "include": ["reasoning.encrypted_content"],
+                "max_output_tokens": MAX_TOKENS,
                 "input": [{"role": "system", "content": system}] + history}
         if tools:
             body["tools"] = [{"type": "function", "name": t["name"], "description": t["description"],
@@ -539,7 +553,7 @@ class OpenAI:
                 except json.JSONDecodeError:
                     args = None
                 calls.append({"id": item["call_id"], "name": item.get("name"), "input": args})
-        meta = {"input_tokens": total, "cache_read_tokens": cached, "output_tokens": out,
+        meta = {"input_tokens": total - cached, "cache_read_tokens": cached, "output_tokens": out,
                 "reasoning_tokens": (usage.get("output_tokens_details") or {}).get("reasoning_tokens") or 0,
                 "cost_usd": cost, "message_items": len(messages_out),
                 "message_item_phases": [item.get("phase") for item in messages_out],
@@ -564,11 +578,13 @@ def now():
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
 
-def agent_turn(adapter, system, history, tools, paths, state, agent, n_message):
+def agent_turn(adapter, system, history, tools, paths, state, agent, n_message, cap=MAX_TOOL_CALLS_PER_TURN):
     """Run one turn: model calls and queries until the agent writes its message. Returns the text.
-    Appends to `history`, `state["calls"]` and `state["tool_log"]`; adds cost to `state["spent"]`."""
+    Appends to `history`, `state["calls"]` and `state["tool_log"]`; adds cost to `state["spent"]`.
+    Past `cap` queries, each further query gets an error result asking for the message; if the agent
+    still queries after that, the turn ends with ToolCap."""
     by_name = {t["name"]: a for a, t in TOOLS.items()}
-    queries = 0
+    queries, refused_rounds = 0, 0
     while True:
         if state["spent"] + NEXT_CALL_RESERVE_USD > state["budget_left"]:
             raise BudgetStop("budget cap reached")
@@ -583,14 +599,16 @@ def agent_turn(adapter, system, history, tools, paths, state, agent, n_message):
         history.extend(resp["items"])
         if not resp["tool_calls"]:
             return resp["text"]
-        results = []
+        results, refused = [], False
         for call in resp["tool_calls"]:
             queries += 1
-            if queries > MAX_TOOL_CALLS_PER_TURN:
-                raise ToolCap(f"more than {MAX_TOOL_CALLS_PER_TURN} queries in one turn")
             owner = by_name.get(call["name"])
             sql = (call["input"] or {}).get("sql") if isinstance(call["input"], dict) else None
-            if owner is None or owner not in paths:
+            if queries > cap:
+                refused = True
+                text, is_error, info = ("Error: the query limit for this turn has been reached. "
+                                        "Write your message now."), True, {"limit_reached": True}
+            elif owner is None or owner not in paths:
                 text, is_error, info = f"Error: no tool named {call['name']}.", True, {}
             else:
                 text, is_error, info = run_query(paths[owner], sql)
@@ -598,6 +616,11 @@ def agent_turn(adapter, system, history, tools, paths, state, agent, n_message):
                                       "sql": sql, "is_error": is_error, **info, "result": text})
             results.append({"id": call["id"], "text": text, "is_error": is_error})
         history.extend(adapter.tool_results(results))
+        if refused:
+            refused_rounds += 1
+            state["limit_hits"] = state.get("limit_hits", 0) + 1
+            if refused_rounds > 1:
+                raise ToolCap(f"kept querying after the limit of {cap} queries in one turn")
 
 
 # ---------------------------------------------------------------- the dialogue
@@ -613,6 +636,7 @@ def run_dialogue(items, friend, setup, adapters, budget_left=math.inf):
     views[opener].append({"role": "user", "content": OPEN})
     state = {"spent": 0.0, "budget_left": budget_left, "calls": [], "tool_log": []}
     transcript, outcome, answer, error, pending, last_proposal = [], None, None, None, None, None
+    rejected = []   # format attempts the harness sent back, with the note it sent
     speaker, started = opener, now()
     while outcome is None:
         if len(transcript) >= MAX_MESSAGES:
@@ -628,6 +652,8 @@ def run_dialogue(items, friend, setup, adapters, budget_left=math.inf):
                     f"your {marker} answer could not be read ({parsed})" if found and isinstance(parsed, str) else None)
                 if not problem:
                     break
+                rejected.append({"agent": speaker, "before_message": len(transcript) + 1, "text": text,
+                                 "problem": problem})
                 views[speaker].append({"role": "user", "content":
                                        f"[Harness note, not from the other agent: {problem}. Send your message again.]"})
             else:
@@ -650,10 +676,12 @@ def run_dialogue(items, friend, setup, adapters, budget_left=math.inf):
         if config == "peer":
             if pending and pending["by"] != speaker and is_agree(text):
                 outcome, answer, message["agree"] = "agreed", pending["answer"], True
+                message["agreed_to"] = pending["n"]
                 break
-            # A proposal stays open for exactly one reply: AGREE must come straight after it.
-            pending = {"by": speaker, "answer": parsed, "n": message["n"]} if found else None
+            # The latest proposal stays open until a new proposal replaces it; AGREE from the other
+            # agent accepts it, however many messages later.
             if found:
+                pending = {"by": speaker, "answer": parsed, "n": message["n"]}
                 message["proposal"] = True
                 last_proposal = pending
         other = "D" if speaker == "H" else "H"
@@ -661,8 +689,8 @@ def run_dialogue(items, friend, setup, adapters, budget_left=math.inf):
         speaker = other
     return {"friend": friend["key"], "setup": setup, "config": config, "roles": role, "opener": opener,
             "outcome": outcome, "error": error, "answer": answer, "last_open_proposal": last_proposal,
-            "transcript": transcript, "tool_log": state["tool_log"], "calls": state["calls"],
-            "systems": systems, "started_at_utc": started, "finished_at_utc": now(),
+            "transcript": transcript, "rejected_attempts": rejected, "tool_limit_hits": state.get("limit_hits", 0),
+            "tool_log": state["tool_log"], "calls": state["calls"], "systems": systems, "started_at_utc": started, "finished_at_utc": now(),
             "cost_usd": round(state["spent"], 6)}
 
 
@@ -673,17 +701,18 @@ def run_solo(items, friend, agents, adapter, budget_left=math.inf):
     system = solo_prompt(items, friend, agents)
     history = [{"role": "user", "content": OPEN_SOLO}]
     state = {"spent": 0.0, "budget_left": budget_left, "calls": [], "tool_log": []}
-    outcome, answer, error, text, started = None, None, None, "", now()
+    outcome, answer, error, text, started, rejected = None, None, None, "", now(), []
     try:
         for retry in range(MAX_FORMAT_RETRIES + 1):
             text = agent_turn(adapter, system, history, [TOOLS[a] for a in agents],
-                              {a: paths[a] for a in agents}, state, "solo", 1)
+                              {a: paths[a] for a in agents}, state, "solo", 1, cap=MAX_TOOL_CALLS_SOLO)
             found, parsed = find_answer(text, "FINAL", n)
             if found and not isinstance(parsed, str):
                 outcome, answer = "final", parsed
                 break
             problem = (f"your FINAL answer could not be read ({parsed})" if found
                        else "no answer was found; write FINAL on its own line, followed by the answer as JSON")
+            rejected.append({"text": text, "problem": problem})
             history.append({"role": "user", "content": f"[Harness note: {problem}.]"})
         else:
             outcome = "format_failure"
@@ -694,7 +723,8 @@ def run_solo(items, friend, agents, adapter, budget_left=math.inf):
     except Exception as exc:
         outcome, error = "error", repr(exc)[:300]
     return {"friend": friend["key"], "setup": f"solo-{agents}", "outcome": outcome, "error": error,
-            "answer": answer, "final_text": text, "tool_log": state["tool_log"], "calls": state["calls"],
+            "answer": answer, "final_text": text, "rejected_attempts": rejected,
+            "tool_limit_hits": state.get("limit_hits", 0), "tool_log": state["tool_log"], "calls": state["calls"],
             "system": system, "started_at_utc": started, "finished_at_utc": now(),
             "cost_usd": round(state["spent"], 6)}
 
@@ -740,7 +770,9 @@ def summary(record):
             "model_calls": len(calls), "queries": len(record["tool_log"]),
             "input_tokens": sum(c.get("input_tokens", 0) + c.get("cache_write_tokens", 0) for c in calls),
             "cache_read_tokens": sum(c.get("cache_read_tokens", 0) for c in calls),
-            "output_tokens": sum(c.get("output_tokens", 0) for c in calls), "cost_usd": record["cost_usd"]}
+            "output_tokens": sum(c.get("output_tokens", 0) for c in calls),
+            "rejected_attempts": len(record.get("rejected_attempts", [])),
+            "tool_limit_hits": record.get("tool_limit_hits", 0), "cost_usd": record["cost_usd"]}
 
 
 # ---------------------------------------------------------------- reference baselines (free)
@@ -768,7 +800,11 @@ def recommender(history, target_film, others_by_viewer, viewers_by_film, k=50, m
     total = sum(s for s, _ in sims)
     shift = sum(s * (others_by_viewer[v][target_film] - statistics.fmean(others_by_viewer[v].values()))
                 for s, v in sims) / total
-    dist = {st: sum(s for s, v in sims if others_by_viewer[v][target_film] == int(st)) / total for st in STARS}
+    # Distribution: each neighbour's rating, moved by the gap between Sam's mean and theirs.
+    def adjusted(v):
+        r = others_by_viewer[v][target_film] - statistics.fmean(others_by_viewer[v].values()) + sam_mean
+        return min(5, max(1, round(r)))
+    dist = {st: sum(s for s, v in sims if adjusted(v) == int(st)) / total for st in STARS}
     return min(5.0, max(1.0, sam_mean + shift)), dist
 
 
@@ -878,7 +914,8 @@ def dry_run():
     assert not err and info["rows"] == ROW_CAP and info["truncated"], info
     for bad in ("DELETE FROM ratings", "INSERT INTO ratings VALUES ('x', 1, 'y', 5)", "PRAGMA table_info(ratings)",
                 f"ATTACH DATABASE '{paths['H']}' AS h", "CREATE TEMP TABLE t (x)",
-                "SELECT 1; SELECT 2", "", "SELECT * FROM nonexistent"):
+                "SELECT 1; SELECT 2", "", "SELECT * FROM nonexistent", "SELECT length(zeroblob(1000000000))",
+                "SELECT hex(randomblob(1000000000))"):
         text, err, _ = run_query(paths["D"], bad)
         assert err, (bad, text)
     text, err, _ = run_query(paths["D"], "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) "
@@ -924,16 +961,38 @@ def dry_run():
         ("lead-D", [], ["FINAL\n{bad"] * 3, "format_failure", 0),
         ("lead-H", ["hi", good], [good], "final", 3),   # the subordinate's FINAL is just text
         ("peer-D-opens", [CallFailed("HTTP 500", 0.01)], ["hi"], "error", 1),
-        ("peer-H-opens", ["PROPOSE\n" + uniform_answer(n)] + ["more"] * 20, ["not yet"] + ["AGREE"] * 20,
-         "message_cap", 20),
+        # The latest proposal stays open: an AGREE two messages later still accepts it.
+        ("peer-H-opens", ["PROPOSE\n" + uniform_answer(n), "It is the genre pattern."], ["Why film 3?", "AGREE"],
+         "agreed", 4),
+        # A counter-proposal replaces the open one; the proposer's own AGREE does not count.
+        ("peer-H-opens", ["PROPOSE\n" + uniform_answer(n), "AGREE"], ["PROPOSE\n" + uniform_answer(n)], "agreed", 3),
+        ("peer-H-opens", ["a"] * 20, ["AGREE"] * 20, "message_cap", 20),
+        # Past the query limit the agent is told to write; querying again after that ends the turn.
         ("lead-H", [{"tool_calls": [{"id": str(i), "name": "query_sam_ratings", "input": {"sql": "SELECT 1"}}
-                                    for i in range(MAX_TOOL_CALLS_PER_TURN + 1)]}], [], "tool_cap", 0),
+                                    for i in range(MAX_TOOL_CALLS_PER_TURN + 1)]}, good], [], "final", 1),
+        ("lead-H", [{"tool_calls": [{"id": str(i), "name": "query_sam_ratings", "input": {"sql": "SELECT 1"}}
+                                    for i in range(MAX_TOOL_CALLS_PER_TURN + 1)]},
+                    {"tool_calls": [{"id": "z", "name": "query_sam_ratings", "input": {"sql": "SELECT 1"}}]}],
+         [], "tool_cap", 0),
         ("lead-H", [{"tool_calls": [{"id": "1", "name": "query_sam_ratings", "input": None}]}, good], [], "final", 1),
     ]
     for setup, h, d, outcome, delivered in checks:
         record = run_dialogue(items, friend, setup, {"H": Fake(list(h)), "D": Fake(list(d))})
         assert (record["outcome"], len(record["transcript"])) == (outcome, delivered), \
             (setup, record["outcome"], len(record["transcript"]), record["error"])
+    record = run_dialogue(items, friend, "peer-H-opens", {"H": Fake(["PROPOSE\n" + uniform_answer(n), "Genres."]),
+                                                          "D": Fake(["Why?", "AGREE"])})
+    assert record["transcript"][-1].get("agreed_to") == 1, record["transcript"]
+    # Probabilities: a sum within the tolerance is renormalized; a larger miss names the film.
+    near = json.loads(uniform_answer(n))
+    near["films"][2]["probabilities"]["3"] = 0.395
+    found, parsed = find_answer("FINAL\n" + json.dumps(near), "FINAL", n)
+    assert found and math.isclose(sum(parsed[3].values()), 1), parsed
+    near["films"][2]["probabilities"]["3"] = 0.3
+    found, parsed = find_answer("FINAL\n" + json.dumps(near), "FINAL", n)
+    assert isinstance(parsed, str) and "film 3" in parsed, parsed
+    record = run_dialogue(items, friend, "lead-D", {"H": Fake([]), "D": Fake(["FINAL\n" + json.dumps(near), good])})
+    assert record["outcome"] == "final" and len(record["rejected_attempts"]) == 1, record["rejected_attempts"]
     record = run_dialogue(items, friend, "peer-H-opens", {"H": Fake(["x"] * 30, 0.3), "D": Fake(["y"] * 30, 0.3)},
                           budget_left=1.0)
     assert record["outcome"] == "budget_stop" and record["cost_usd"] <= 1.0, record["cost_usd"]
@@ -997,9 +1056,13 @@ def smoke(label, cap, friends_spec, pairings):
     if not pairs or any(len(pair) != 2 for pair in pairs):
         sys.exit("Pairings must look like MODEL_H/MODEL_D")
     adapters = {m: make_adapter(m) for m in sorted({m for pair in pairs for m in pair})}
-    # Setups outer: if the run stops early, no friend or pairing loses all its data.
-    plan = [(f"{f['key']}__{mh}__{md}__{setup}", (f, setup, mh, md))
-            for setup in SETUPS for f in friends for mh, md in pairs]
+    # Friends outer, each a complete block; within a friend the setups and pairings run in a seeded
+    # shuffled order, so an early stop never empties a setup and time trends do not line up with setups.
+    plan = []
+    for f in friends:
+        block = [(f"{f['key']}__{mh}__{md}__{setup}", (f, setup, mh, md)) for setup in SETUPS for mh, md in pairs]
+        random.Random(f"{SEED}-order-{label}-{f['key']}").shuffle(block)
+        plan += block
 
     def execute(args, budget_left):
         friend, setup, mh, md = args
