@@ -1,7 +1,7 @@
 # Sketch: a taste-prediction task with tools (2026-11-07)
 
-Status: agreed design (2026-11-07). Harness built (harness/taste.py) and reviewed; ready for a smoke test. The data is downloaded locally (gitignored); no code is
-written yet.
+Status: agreed design (2026-11-07). Harness built (harness/taste.py) and reviewed. Smoke test 4
+ran on 2026-11-07 (runs/smoke-2026-11-07-taste/). Pilot scale agreed 2026-11-08.
 
 ## Why change the task
 
@@ -132,8 +132,8 @@ is limited.
 
 24 friends × 4 setups gives 96 conversations per model pairing, plus single-agent
 references. Tool loops mean many more calls per conversation, each with a growing context.
-With prompt caching, a rough guess is $0.50–2 per conversation, so $50–200 for the pilot.
-A smoke test with 4 conversations comes first to measure the real cost.
+With prompt caching, a rough guess was $0.50–2 per conversation. Smoke test 4 measured about
+$0.31, so about $30 per 96 conversations.
 
 ## Decisions
 
@@ -152,6 +152,5 @@ A smoke test with 4 conversations comes first to measure the real cost.
 4. **This replaces the couples task** (Dave, 2026-11-07). The couples smoke tests stay in the
    repo as the record of why.
 
-## Open questions for Dave
-
-1. Pilot scale and the cost cap, after the smoke test.
+5. **Pilot scale** (Dave, 2026-11-08): Opus 5.5 on both sides, 96 conversations and 72
+   single-agent runs, $60 cap. Details in plans/analysis-plan.md. Sol comes in the next stage.

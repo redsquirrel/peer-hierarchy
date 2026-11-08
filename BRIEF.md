@@ -138,8 +138,8 @@ decision.
 ## Open decisions for Dave
 
 1. ~~Model pairings~~ Decided: Claude Opus 5.5 on both sides.
-2. Scale of the pilot (scenarios × configurations × counterbalancing × repetitions),
-   and a cost cap.
+2. ~~Scale of the pilot~~ Decided 2026-11-08: 24 friends × 4 setups, Opus 5.5 on both
+   sides, plus single-agent runs, $60 cap (plans/analysis-plan.md).
 
 ## Decisions (2026-11-06)
 

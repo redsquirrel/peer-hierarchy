@@ -1,7 +1,8 @@
-# Analysis plan (draft)
+# Analysis plan
 
-Status: **draft, not frozen.** It will be finished, committed and pushed before any pilot
-data is collected. Nothing here has been run on pilot data. Smoke-test runs are excluded.
+Status: **frozen 2026-11-08**, before any pilot data was collected. The commit that adds this
+line is the frozen version. Any later change is listed under "Changes after freezing", with
+its date and reason. Smoke-test runs are excluded from every analysis.
 
 The task is the tool-based film-taste task (plans/taste-task.md), which replaced the couples
 task on 2026-11-07. Hypotheses are stated in BRIEF.md. In summary:
@@ -12,7 +13,24 @@ task on 2026-11-07. Hypotheses are stated in BRIEF.md. In summary:
   difference between "history agent leads" and "database agent leads"), H2c (information
   flow) and "who moved" (below).
 
-Still to write before freezing: how repetitions are pooled, and pilot scale.
+## Pilot scale (Dave, 2026-11-08)
+
+- **Model:** Claude Opus 5.5 on both sides. This is the BRIEF's first stage. Sol and mixed
+  pairs come later, so "who moved" is not measured in this pilot.
+- **Conversations:** all 24 friends × 4 setups = 96 conversations, one each. Friends run one at
+  a time, and the four setups run in a seeded random order within each friend.
+- **Single-agent runs:** all 24 friends × 3 conditions (history only, database only, both
+  tools) = 72 runs, one each. These are the floors and the ceiling for H2a.
+- **Cost cap: $60 in total.** $36 for the conversations (smoke test 4 cost about $0.31 each,
+  so about $30 is expected) and $8 for each single-agent condition. A run that would pass its
+  cap is not started, and a stop is reported.
+- **No stopping for results.** The results are not looked at until all runs are done or a
+  cap stops them.
+
+**Repetitions.** Each friend runs each setup once, so nothing is pooled. If a friend's
+conversation is rerun after an infrastructure failure (see below), the rerun replaces it.
+When later stages repeat a cell, the repetitions are averaged within the friend before the
+paired tests, so each friend counts once.
 
 ## Confirmatory: H1 (peers need more communication)
 
@@ -148,6 +166,10 @@ references are the same, so who moved cannot be measured there.
 **Supporting detail (descriptive).** In peer conversations, record whose first proposal was
 closer to the final answer, and how many times each agent revised its proposal.
 
-**Needed before the pilot.** The harness has no single-agent mode yet. Reference answers
-need one: one agent with both tools, the same targets and answer format. These runs are
-also the ceiling reference point for H2a.
+**Single-agent mode.** The harness has one (`taste.py solo ... both`): one agent with both
+tools, the same targets and answer format. The pilot runs it once per friend as the H2a
+ceiling. The 3 or more repetitions per model that "who moved" needs come with the Sol stage.
+
+## Changes after freezing
+
+None yet.

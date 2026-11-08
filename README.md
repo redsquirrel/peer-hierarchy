@@ -34,4 +34,5 @@ All couples content is fiction.
 
 ## Status
 
-Design of the film-taste task agreed. The harness is not built yet.
+Harness built and smoke-tested. The analysis plan is frozen (plans/analysis-plan.md). Next:
+the pilot, Claude Opus 5.5 on both sides, 96 conversations.
